@@ -203,27 +203,27 @@ func BytesToInt(b []byte) int {
 func main() {
 	flysnow, err := Connection("192.168.1.90", 22258, "apis")
 	fmt.Println(flysnow, err)
-	//res, err := flysnow.Stat(map[string]interface{}{"term": "all", "sort": []interface{}{"total", false}, "limit": 3, "skip": 5, "span": 40, "spand": "s", "index": map[string]interface{}{}, "group": []string{"appkey"}})
-	//fmt.Println(err, string(res.Data))
+	res, err := flysnow.Stat(map[string]interface{}{"term": "all", "sort": []interface{}{"total", false}, "limit": 3, "skip": 5, "span": 40, "spand": "s", "index": map[string]interface{}{}, "group": []string{"appkey"}})
+	fmt.Println(err, string(res.Data))
 	t := time.Now()
-	for i := 0; i <= 1000000; i++ {
-		res, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
-		fmt.Println(err, res)
-		//if i%10000 == 0 {
-		//fmt.Println(time.Since(t))
-		//time.Sleep(3 * time.Second)
-		//res, err := flysnow.Stat(map[string]interface{}{"term": "all"})
-		//fmt.Println(err, string(res.Data))
-		//ddd := map[string]int{}
-		//json.Unmarshal(res.Data, &ddd)
-		//if v, ok := ddd["total"]; ok && v-1 != i {
-		//fmt.Println(i)
-		//break
-		//}
-		//t = time.Now()
-		//}
-		fmt.Println(i)
-		time.Sleep(1 * time.Second)
-	}
+	//for i := 0; i <= 1000000; i++ {
+	//res, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
+	//fmt.Println(err, res)
+	//if i%10000 == 0 {
+	//fmt.Println(time.Since(t))
+	//time.Sleep(3 * time.Second)
+	//res, err := flysnow.Stat(map[string]interface{}{"term": "all"})
+	//fmt.Println(err, string(res.Data))
+	//ddd := map[string]int{}
+	//json.Unmarshal(res.Data, &ddd)
+	//if v, ok := ddd["total"]; ok && v-1 != i {
+	//fmt.Println(i)
+	//break
+	//}
+	//t = time.Now()
+	//}
+	//fmt.Println(i)
+	//time.Sleep(1 * time.Second)
+	//}
 	fmt.Println(time.Since(t))
 }

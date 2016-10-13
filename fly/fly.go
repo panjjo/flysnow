@@ -105,33 +105,32 @@ func StartServer() {
 			continue
 		}
 
-		log.Info("new connect from:%v,connid:%v,connect_num(%d)", conn.RemoteAddr().String(), connid, ConnMaps.Len()+1)
-		go handleConnection(conn, connid)
+		//声明一个管道用于接收解包的数据
+		readerChannel := make(chan []byte, 16)
+
+		expconn := &ConnStruct{
+			conn:   conn,
+			reader: readerChannel,
+			connid: connid,
+		}
+		ConnMaps.Put(connid, expconn)
+		log.Info("new connect from:%v,connid:%v,connect_num(%d)", conn.RemoteAddr().String(), connid, ConnMaps.Len())
+		go handleConnection(expconn)
 	}
 }
 
-func handleConnection(conn net.Conn, id string) {
-	defer func() { ConnMaps.Remove(id) }()
+func handleConnection(expconn *ConnStruct) {
+	defer func() { ConnMaps.Remove(expconn.connid) }()
 
 	//声明一个临时缓冲区，用来存储被截断的数据
 	tmpBuffer := make([]byte, 0)
 
-	//声明一个管道用于接收解包的数据
-	readerChannel := make(chan []byte, 16)
-
-	expconn := &ConnStruct{
-		conn:   conn,
-		reader: readerChannel,
-		connid: id,
-	}
-	ConnMaps.Put(id, expconn)
-
 	//go reader(expconn)
 	buffer := make([]byte, 1024)
 	for {
-		n, err := conn.Read(buffer)
+		n, err := expconn.conn.Read(buffer)
 		if err != nil {
-			log.Warn(" connection :%v ,error: %v", conn.RemoteAddr().String(), err)
+			log.Warn(" connection :%v ,error: %v", expconn.conn.RemoteAddr().String(), err)
 			return
 		}
 		tmpBuffer = Unpack(append(tmpBuffer, buffer[:n]...), expconn)
