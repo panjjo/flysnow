@@ -220,7 +220,7 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 				ConnRespChannel <- &connResp{conn.connid, ErrOpId, nil}
 			} else {
 				if cal, ok := v[string(tagdata)]; ok {
-					cal.reader(&BodyData{
+					go cal.reader(&BodyData{
 						Op:       op,
 						Body:     body,
 						Connid:   conn.connid,

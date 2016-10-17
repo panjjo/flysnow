@@ -15,6 +15,7 @@ type TermConfig struct {
 }
 
 type TermInterface interface {
+	//Exec(data []byte, redisconn *utils.RedisConn)
 	Exec(data []byte)
 	SetConfig(c *TermConfig)
 }

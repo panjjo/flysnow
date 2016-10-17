@@ -45,7 +45,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) bool {
 	if b == nil {
 		end := DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
-		snowsys.RedisConn.Sends("HMSET", snowsys.Key, "s_time", start, "e_time", end)
+		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
 		return false
 	} else {
 		endt, _ := strconv.ParseInt(string(b.([]byte)), 10, 64)
@@ -144,7 +144,11 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 					if v["s_time"].(int64) >= v1["s_time"].(int64) && v["e_time"].(int64) <= v1["e_time"].(int64) {
 						for tk, tv := range v {
 							if tk != "s_time" && tk != "e_time" {
-								v1[tk] = v1[tk].(int64) + tv.(int64)
+								if v2, ok := v1[tk]; ok {
+									v1[tk] = v2.(int64) + tv.(int64)
+								} else {
+									v1[tk] = tv
+								}
 							}
 						}
 						td[k1] = v1

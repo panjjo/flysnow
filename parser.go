@@ -75,12 +75,13 @@ func parser() {
 			}
 			filestr += "}\n"
 			//内嵌函数 exec
+			//filestr += "func(t *" + strings.ToUpper(term.Name) + ") Exec(body []byte,redisconn *utils.RedisConn){\n"
 			filestr += "func(t *" + strings.ToUpper(term.Name) + ") Exec(body []byte){\n"
 			if len(term.Execs) > 0 {
 				filestr += "request:=t.TransReq(body)\n"
 				filestr += "redisconn:=utils.NewRedisConn(\"" + strings.ToLower(name) + "\")\n"
-				filestr += `defer redisconn.Close()
-				keys := utils.GetKey(*request, t.Config.Key)
+				filestr += "defer redisconn.Close()\n"
+				filestr += `keys := utils.GetKey(*request, t.Config.Key)
 				key := models.RedisKT+"_` + strings.ToLower(name) + `_"+keys.Key
         `
 				filestr += ""

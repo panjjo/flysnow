@@ -37,10 +37,10 @@ func (r *RedisConn) Close() {
 /*
 生成redis连接池
 */
-func newRedisPool(server string, maxidle int) *redis.Pool {
+func newRedisPool(server string, maxidle, maxactive int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     maxidle,
-		MaxActive:   200,
+		MaxActive:   maxactive,
 		IdleTimeout: 240 * time.Second,
 		Wait:        true,
 		Dial: func() (redis.Conn, error) {
@@ -64,6 +64,7 @@ func InitRedis(tag string) {
 	redispool = map[string]*redis.Pool{}
 	FSConfig.SetMod(tag)
 	rdshost := FSConfig.StringDefault("redis.Host", "192.168.1.9:6379")
-	rdsmaxpool := FSConfig.IntDefault("redis.MaxPoolConn", 10)
-	redispool[tag] = newRedisPool(rdshost, rdsmaxpool)
+	rdsmaxpool := FSConfig.IntDefault("redis.MaxPoolConn", 100)
+	rdsmaxactive := FSConfig.IntDefault("redis.MaxActive", 100)
+	redispool[tag] = newRedisPool(rdshost, rdsmaxpool, rdsmaxactive)
 }

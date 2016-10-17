@@ -13,9 +13,7 @@ var (
 )
 
 type ListenChanFunc interface {
-	handle()
 	reader(data *BodyData)
-	initchan()
 }
 
 func init() {
@@ -38,18 +36,15 @@ func init() {
 	for _, tag := range instance.TagList {
 		handle := &Calculation{}
 		handleFuncs[2][tag] = handle
-		handle.initchan()
+		//handle.initchan()
 		utils.InitRedis(tag)
 		utils.MgoInit(tag)
-		go handle.handle()
 	}
 	//stat
 	stat := &Statistics{}
 	for _, tag := range instance.TagList {
 		handleFuncs[1][tag] = stat
 	}
-	stat.initchan()
-	go stat.handle()
 
 	ConnRespChannel = make(chan *connResp, 10)
 }
