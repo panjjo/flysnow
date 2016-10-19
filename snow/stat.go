@@ -57,7 +57,7 @@ func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 		t := d["s_time"].(int64)
 		e_time := DurationMap[s.SpanD](t, s.Span)
 		s_time := DurationMap[s.SpanD+"l"](e_time, s.Span)
-		if t <= e_time && s_time <= d["s_time"].(int64) {
+		if d["e_time"].(int64) <= e_time && s_time <= d["s_time"].(int64) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
 		} else {
@@ -144,7 +144,6 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			groupdata[gsk] = l
 		}
 	}
-	utils.Log.Error(string(utils.JsonEncode(groupdata, true)))
 
 	sortdata := []interface{}{}
 	for _, v := range groupdata {
