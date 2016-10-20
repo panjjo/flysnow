@@ -132,7 +132,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 		if v, ok := groupdata[gsk]; ok {
 			for lk, lv := range l {
-				if lk[:1] != "@" && lk[1:] != "_time" {
+				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
 					if llv, ok := v[lk]; ok {
 						v[lk] = llv.(int64) + lv.(int64)
 					} else {

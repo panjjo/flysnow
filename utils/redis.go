@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-var redispool map[string]*redis.Pool
+var redispool = map[string]*redis.Pool{}
 
 type RedisConn struct {
 	Con redis.Conn
@@ -61,7 +61,6 @@ func newRedisPool(server string, maxidle, maxactive int) *redis.Pool {
 生成redis连接池
 */
 func InitRedis(tag string) {
-	redispool = map[string]*redis.Pool{}
 	FSConfig.SetMod(tag)
 	rdshost := FSConfig.StringDefault("redis.Host", "192.168.1.9:6379")
 	rdsmaxpool := FSConfig.IntDefault("redis.MaxPoolConn", 100)

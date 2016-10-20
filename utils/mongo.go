@@ -5,13 +5,11 @@ import (
 )
 
 var mongoQuery *mgo.Query
-var MongoSession map[string]*mgo.Session
-var MgoSessionDuplType map[string]string
+var MongoSession = map[string]*mgo.Session{}
+var MgoSessionDuplType = map[string]string{}
 
 func MgoInit(tag string) {
 	var err error
-	MgoSessionDuplType = map[string]string{}
-	MongoSession = map[string]*mgo.Session{}
 	FSConfig.SetMod(tag)
 	// Let's try to connect to Mongo DB right upon starting revel but don't
 	// raise an error. Errors will be handled if there is actually a request
