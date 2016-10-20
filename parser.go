@@ -139,7 +139,7 @@ func parser() {
 			interfacemap += "\"" + term.Name + "\":&" + name + "." + strings.ToUpper(term.Name) + "{},\n"
 			termconfigmap[name][term.Name] = models.TermConfig{Name: term.Name, Key: term.Key, IsSnow: term.IsSnow, Snow: term.Snow}
 		}
-		interfacemap += "}"
+		interfacemap += "},"
 		if err := ioutil.WriteFile(file, []byte(filestr), os.ModePerm); err != nil {
 			log.Warn("parser write tmp file err:%v", err)
 		} else {
