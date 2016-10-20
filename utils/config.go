@@ -105,6 +105,9 @@ func (c *Config) InitConfig(path string) {
 }
 
 func (c Config) StringDefault(k, d string) string {
+	if s, ok := c.Mymap[middle+k]; ok {
+		d = s
+	}
 	k = c.Mod + middle + k
 	v, found := c.Mymap[k]
 	if !found {
@@ -113,16 +116,22 @@ func (c Config) StringDefault(k, d string) string {
 	return v
 }
 
-func (c Config) String(k string) string {
+func (c Config) String(k string) (d string) {
+	if s, ok := c.Mymap[middle+k]; ok {
+		d = s
+	}
 	k = c.Mod + middle + k
 	v, found := c.Mymap[k]
 	if !found {
-		return ""
+		return d
 	}
 	return v
 }
 
 func (c Config) IntDefault(k string, d int) int {
+	if s, ok := c.Mymap[middle+k]; ok {
+		d, _ = strconv.Atoi(s)
+	}
 	k = c.Mod + middle + k
 	v, found := c.Mymap[k]
 	if !found {
@@ -132,12 +141,15 @@ func (c Config) IntDefault(k string, d int) int {
 	return i
 }
 
-func (c Config) Int(k string) int {
+func (c Config) Int(k string) (i int) {
+	if s, ok := c.Mymap[middle+k]; ok {
+		i, _ = strconv.Atoi(s)
+	}
 	k = c.Mod + middle + k
 	v, found := c.Mymap[k]
 	if !found {
-		return 0
+		return i
 	}
-	i, _ := strconv.Atoi(v)
+	i, _ = strconv.Atoi(v)
 	return i
 }
