@@ -7,6 +7,11 @@ const (
 
 var TermConfigMap map[string]map[string]*TermConfig
 
+type RANGELIST []struct {
+	Key   interface{} `json:"key"`
+	Value interface{} `json:"value"`
+}
+
 type TermConfig struct {
 	Name   string
 	Key    []string

@@ -55,7 +55,11 @@ func parser() {
 		//请求结构体
 		filestr += "type RequestData struct{\n"
 		for k, t := range v.Reqdata.(map[string]interface{}) {
-			filestr += strings.ToUpper(k) + "  " + t.(string) + "\n"
+			if t.(string)[:1] == "@" {
+				filestr += strings.ToUpper(k) + "  models." + strings.ToUpper(t.(string)[1:]) + "\n"
+			} else {
+				filestr += strings.ToUpper(k) + "  " + t.(string) + "\n"
+			}
 		}
 		filestr += "STime int64 `json:\"s_time\"`\n"
 		filestr += "}\n"
@@ -66,14 +70,14 @@ func parser() {
 			}
 			//term struct
 			filestr += "type " + strings.ToUpper(term.Name) + "  struct { \n Request *RequestData \n Config *models.TermConfig\n"
-			filestr += "Result *" + strings.ToUpper(term.Name) + "Result\n"
+			//filestr += "Result *" + strings.ToUpper(term.Name) + "Result\n"
 			filestr += "}\n"
 			//返回结构体
-			filestr += "type " + strings.ToUpper(term.Name) + "Result  struct { \n"
+			/*filestr += "type " + strings.ToUpper(term.Name) + "Result  struct { \n"
 			for tk, tt := range term.Result.(map[string]interface{}) {
 				filestr += strings.ToUpper(tk) + "  " + tt.(string) + "\n"
 			}
-			filestr += "}\n"
+			filestr += "}\n"*/
 			//内嵌函数 exec
 			//filestr += "func(t *" + strings.ToUpper(term.Name) + ") Exec(body []byte,redisconn *utils.RedisConn){\n"
 			filestr += "func(t *" + strings.ToUpper(term.Name) + ") Exec(body []byte){\n"
@@ -96,19 +100,23 @@ func parser() {
 				filestr += "if " + strings.Replace(stringReplaceRegexp(ex.Filter, strings.ToUpper), "@", "request.", -1) + "{\n"
 				for _, d := range ex.Do {
 					var dvalue string
-					switch reflect.TypeOf(d.Value).Name() {
-					case "string":
-						if len(d.Value.(string)) != 0 && d.Value.(string)[0:1] == "@" {
-							dvalue = "request." + strings.ToUpper(d.Value.(string)[1:])
-						} else {
-							dvalue = d.Value.(string)
+					if d.Value != nil {
+						switch reflect.TypeOf(d.Value).Name() {
+						case "string":
+							if len(d.Value.(string)) != 0 && d.Value.(string)[0:1] == "@" {
+								dvalue = "request." + strings.ToUpper(d.Value.(string)[1:])
+							} else {
+								dvalue = d.Value.(string)
+							}
+						case "int":
+							dvalue = fmt.Sprintf("%d", d.Value.(int))
+						case "int64":
+							dvalue = fmt.Sprintf("%d", d.Value.(int64))
+						case "float64":
+							dvalue = fmt.Sprintf("%f", d.Value.(float64))
+						default:
+
 						}
-					case "int":
-						dvalue = fmt.Sprintf("%d", d.Value.(int))
-					case "int64":
-						dvalue = fmt.Sprintf("%d", d.Value.(int64))
-					case "float64":
-						dvalue = fmt.Sprintf("%f", d.Value.(float64))
 					}
 					if len(d.Name) != 0 && d.Name[0:1] == "@" {
 						d.Name = "request." + strings.ToUpper(d.Name[1:])
@@ -118,6 +126,12 @@ func parser() {
 					switch strings.ToLower(d.Op) {
 					case "sum":
 						filestr += "redisconn.Sends(\"HINCRBYFLOAT\",key," + d.Name + "," + dvalue + ")\n"
+					case "range_sum":
+						filestr += "for _,r:=range " + d.Name + "{\n"
+						filestr += `
+                redisconn.Sends("HINCRBYFLOAT",r.Key,r.Value)
+          }
+            `
 					}
 				}
 				filestr += "}\n"
