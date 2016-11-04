@@ -15,7 +15,7 @@ var S_Expmap = map[string]sExpStruct{
 	"==": sExpStruct{2, "bool", "eq", " == "},
 	"||": sExpStruct{-1, "bool", "bool", " || "},
 	"!=": sExpStruct{2, "bool", "eq", " != "},
-	"+":  sExpStruct{2, "interface", "eq", " + "},
+	"+":  sExpStruct{-1, "interface", "eq", " + "},
 }
 
 type sExpStruct struct {
@@ -137,6 +137,7 @@ func parserFuncFilter(fs []models.FSFilter) {
 }
 func complexExec(term models.Term) (str string) {
 	for _, e := range term.Execs {
+		isif := false
 		tmpstr := ""
 		if len(e.Filter) > 0 {
 			ifstr, res_type := complexTermFilter(e.Filter, "bool")
@@ -145,6 +146,7 @@ func complexExec(term models.Term) (str string) {
 				os.Exit(1)
 			}
 			tmpstr = "if " + ifstr + "{\n"
+			isif = true
 		} else if len(e.Filter) == 1 {
 			fmt.Println("parer ", datastruct.name, " ", term.Name, " filter err: Len<=1 ", e.Filter)
 			os.Exit(1)
@@ -153,6 +155,8 @@ func complexExec(term models.Term) (str string) {
 			for _, d := range e.Do {
 				tmpstr += complexTermDo(d) + "\n"
 			}
+		}
+		if isif {
 			tmpstr += "}\n"
 		}
 		str += tmpstr
@@ -244,11 +248,32 @@ func complexDoFuncSum(f []interface{}) (str string) {
 	}
 	tvl := ""
 	switch f[2].(type) {
+	case string:
+		if f[2].(string)[:1] == "@" {
+			fp := f[2].(string)[1:]
+			if drt, ok := datastruct.request[fp]; ok {
+				if drt.(string) == "$rangelist" {
+					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
+						"the second param", f[1], "type", drt, " but want float64")
+					os.Exit(1)
+				}
+				tvl = "d.req." + f[2].(string)[1:]
+			} else {
+				fmt.Println("parser ", datastruct.name, termstruct.name, "do err:op", car, " Not Found Key ", fp)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
+				"the second param", f[2], "type string but want float64")
+			os.Exit(1)
+		}
+
 	case int, int64, float64, float32:
 		tvl = fmt.Sprintf("%v", f[2])
 	case []interface{}:
 		tvl1, returntype := complexTermFilter(f[2].([]interface{}), "float64")
 		if returntype != "float64" {
+			fmt.Println(tvl1, returntype, f[2])
 			fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
 				"the second param", f[2], "type", returntype, " but want float64")
 			os.Exit(1)
@@ -351,7 +376,7 @@ func complexTermFilter(f []interface{}, child_type string) (str string, return_t
 						" need ", v.paramnum, " param")
 					os.Exit(1)
 				}
-				if child_type != v.return_type {
+				if child_type != v.return_type && v.return_type != "interface" {
 					//op返回值类型与期望不匹配
 					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
 						" return ", v.return_type, " but want ", child_type)
@@ -398,12 +423,17 @@ func complexTermFilter(f []interface{}, child_type string) (str string, return_t
 					paramtype = append(paramtype, vtype)
 				}
 				if v.child_type == "eq" {
+					eqrt := ""
 					for i, x := range paramtype[1:] {
-						if paramtype[i] != x {
+						eqrt = x
+						if paramtype[i] != x && reflect.TypeOf(param[i]).Name() != reflect.TypeOf(param[i+1]).Name() {
 							fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: can't use op ", car,
 								"with", paramtype[i], "and", x, f)
 							os.Exit(1)
 						}
+					}
+					if car == "+" {
+						return strings.Join(param, v.split), eqrt
 					}
 				}
 				return strings.Join(param, v.split), v.return_type
@@ -523,7 +553,12 @@ func assemble(file string, header bool) {
 		if e != nil {
 			fmt.Println("load json file:", file, " error:", e.Error())
 		}
-		ParserMap[json.Name] = json
+		if v, ok := ParserMap[json.Name]; ok {
+			json.Term = v.Term
+			ParserMap[json.Name] = json
+		} else {
+			ParserMap[json.Name] = json
+		}
 	} else {
 		json := models.Term{}
 		e := utils.JsonDecode(b, &json)
@@ -536,7 +571,7 @@ func assemble(file string, header bool) {
 			v.Term = append(v.Term, json)
 			ParserMap[belang] = v
 		} else {
-			fmt.Println("not found header json:", belang)
+			ParserMap[belang] = models.Json{Term: []models.Term{json}}
 		}
 	}
 }
