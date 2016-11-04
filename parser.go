@@ -15,6 +15,7 @@ var S_Expmap = map[string]sExpStruct{
 	"==": sExpStruct{2, "bool", "eq", " == "},
 	"||": sExpStruct{-1, "bool", "bool", " || "},
 	"!=": sExpStruct{2, "bool", "eq", " != "},
+	"+":  sExpStruct{2, "interface", "eq", " + "},
 }
 
 type sExpStruct struct {
@@ -165,9 +166,9 @@ func complexTermDo(f []interface{}) (str string) {
 		os.Exit(1)
 	}
 	switch car {
-	case "+":
+	case "+=":
 		return complexDoFuncSum(f)
-	case "++":
+	case "rangesum":
 		return complexDoFuncSumList(f)
 	default:
 		fmt.Println("parer ", datastruct.name, " ", termstruct.name, " do err: not found op ", f[0])

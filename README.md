@@ -63,10 +63,10 @@
               ["$order_filter","@orderid"] # 调用过滤器过滤orderid ，此条件解析为 数据中status的值为succ并且orderid过滤不存在
            ],
            "do":[                       
-             ["+","succ",1],            # do 为执行操作的具体操作 
-             ["+","total",1],           # 此操作为 total+1
-             ["+","@shopid",1]          # 此为将传入字段中shopid作为key值加1
-             ["++","@items"]            # 循环计算(详情看 操作运算说明)
+             ["+=","succ",1],            # do 为执行操作的具体操作 
+             ["+=","total",1],           # 此操作为 total+1
+             ["+=","@shopid",1]          # 此为将传入字段中shopid作为key值加1
+             ["rangesum","@items"]            # 循环计算(详情看 操作运算说明)
            ]                            
          },                            
          {
@@ -118,7 +118,7 @@
 运算符
   条件
   操作符        参数                              返回
-   +          float64,float64                     float64
+   +          interface,interface....             interface
    ==         interface,interface                 bool
    &&         bool,bool,bool.....                 bool
    !=         interface,interface                 bool
@@ -127,6 +127,6 @@
 
   Do                                                              Do 类型操作是针对redis操作 +表示key.value+value
   操作符        参数                            
-   ++         $rangelist                        
-   +          interface,float64
+   rangesum         $rangelist                        
+   +=          interface,float64
 
