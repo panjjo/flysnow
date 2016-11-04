@@ -63,6 +63,7 @@ func main() {
 	copyMainFile()
 	parserJsonFile(DataPath)
 	parserJson()
+	fmt.Println("parser finish")
 }
 
 func parserJson() {
@@ -79,12 +80,13 @@ func parserJson() {
 			termstruct.exec = complexExec(term)
 			baseStrMap["termlistmap"] += "termmap[\"" + name + term.Name + "\"].Exec,"
 			setBaseTermMap(name, term)
+			datastruct.term = append(datastruct.term, termstruct)
 		}
 		baseStrMap["termlistmap"] += "},},"
-		datastruct.term = append(datastruct.term, termstruct)
+		writeBaseFile()
+		writeTermFile()
+		fmt.Println("parse", name, "succ")
 	}
-	writeBaseFile()
-	writeTermFile()
 }
 func writeTermFile() {
 	waitwritestr := ""
@@ -134,20 +136,25 @@ func parserFuncFilter(fs []models.FSFilter) {
 }
 func complexExec(term models.Term) (str string) {
 	for _, e := range term.Execs {
+		tmpstr := ""
 		if len(e.Filter) > 0 {
-			ts, _ := complexTermFilter(e.Filter, "bool")
-			str += ts
+			ifstr, res_type := complexTermFilter(e.Filter, "bool")
+			if res_type != "bool" {
+				fmt.Println("parer ", datastruct.name, " ", term.Name, " filter err: return must bool but get ", res_type)
+				os.Exit(1)
+			}
+			tmpstr = "if " + ifstr + "{\n"
 		} else if len(e.Filter) == 1 {
 			fmt.Println("parer ", datastruct.name, " ", term.Name, " filter err: Len<=1 ", e.Filter)
 			os.Exit(1)
 		}
-		str = "if " + str + "{\n"
 		if len(e.Do) > 0 {
 			for _, d := range e.Do {
-				str += complexTermDo(d) + "\n"
+				tmpstr += complexTermDo(d) + "\n"
 			}
-			str += "}\n"
+			tmpstr += "}\n"
 		}
+		str += tmpstr
 	}
 	return str
 }
@@ -159,16 +166,16 @@ func complexTermDo(f []interface{}) (str string) {
 	}
 	switch car {
 	case "+":
-		return complexFuncSum(f)
+		return complexDoFuncSum(f)
 	case "++":
-		return complexFuncSumList(f)
+		return complexDoFuncSumList(f)
 	default:
 		fmt.Println("parer ", datastruct.name, " ", termstruct.name, " do err: not found op ", f[0])
 		os.Exit(1)
 	}
 	return ""
 }
-func complexFuncSumList(f []interface{}) (str string) {
+func complexDoFuncSumList(f []interface{}) (str string) {
 	car, _ := f[0].(string)
 	if len(f)-1 != 1 {
 		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
@@ -203,23 +210,25 @@ func complexFuncSumList(f []interface{}) (str string) {
 	str = strings.Replace(str, "{{name}}", fkn, -1)
 	return str
 }
-func complexFuncSum(f []interface{}) (str string) {
+func complexDoFuncSum(f []interface{}) (str string) {
 	car, _ := f[0].(string)
 	if len(f)-1 != 2 {
 		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
 			"need 2 params", " but get", len(f)-1)
 		os.Exit(1)
 	}
-	if _, ok := f[1].(string); !ok {
+	switch f[1].(type) {
+	case int, int64, float64, string:
+	default:
 		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"the second param type must string", " but get", reflect.TypeOf(f[1]).Name())
+			"the second param type must interface{}", " but get", reflect.TypeOf(f[1]).Name())
 		os.Exit(1)
 	}
 	fkn := ""
 	if f[1].(string)[:1] == "@" {
 		fp := f[1].(string)[1:]
 		if drt, ok := datastruct.request[fp]; ok {
-			if drt.(string) != "float64" {
+			if drt.(string) == "$rangelist" {
 				fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
 					"the second param", f[1], "type", drt, " but want float64")
 				os.Exit(1)
