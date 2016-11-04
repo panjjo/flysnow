@@ -311,26 +311,24 @@ func main() {
 	//for t := 0; t < 10; t++ {
 
 	wg := sync.WaitGroup{}
-	wg.Add(100000)
+	wg.Add(50000)
 	sn := time.Now()
-	for x := 0; x < 100; x++ {
+	for x := 0; x < 2; x++ {
 		go func() {
 			flysnow, _ := Connection("192.168.1.90", 22258, "apis")
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 25000; i++ {
 				fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
 				if err != nil {
 					fmt.Println(err)
 				}
-				if fsres.Code != 0 {
-					fmt.Println(fsres.Code)
-				}
+				fmt.Println(fsres.Code)
 				wg.Done()
 			}
 			flysnow.Close()
 		}()
 	}
 	wg.Wait()
-	fmt.Println("1*100000  t:", time.Since(sn))
+	fmt.Println(time.Since(sn).Nanoseconds() / 100000)
 	res, _ := RedisDo("HGETALL", rdk)
 	RedisDo("DEL", rdk)
 	ttt := res.([]interface{})

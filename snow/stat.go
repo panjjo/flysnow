@@ -55,8 +55,8 @@ func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
 		t := d["s_time"].(int64)
-		e_time := DurationMap[s.SpanD](t, s.Span)
-		s_time := DurationMap[s.SpanD+"l"](e_time, s.Span)
+		e_time := utils.DurationMap[s.SpanD](t, s.Span)
+		s_time := utils.DurationMap[s.SpanD+"l"](e_time, s.Span)
 		if d["e_time"].(int64) <= e_time && s_time <= d["s_time"].(int64) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
@@ -87,7 +87,8 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	//获取数据
 	tl := []map[string]interface{}{}
-	rdsk := models.RedisKT + "_" + tag + "_" + utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key)
+	//rdsk := models.RedisKT + "_" + tag + "_" + utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key)
+	rdsk := ""
 	//get from redis
 	rdsconn := utils.NewRedisConn(tag)
 	keys, err := rdsconn.Dos("KEYS", rdsk)

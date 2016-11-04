@@ -1,0 +1,84 @@
+package tmp
+
+import (
+	"flysnow/models"
+	"flysnow/utils"
+	"sync"
+)
+
+type TMP struct {
+	B       []byte
+	Tag     string
+	Code    int
+	Req     interface{}
+	Err     error
+	WG      *sync.WaitGroup
+	Commods []*RdsSendStruct
+	lock    sync.Mutex
+}
+
+func (t *TMP) AddCommods(r *RdsSendStruct) {
+	t.lock.Lock()
+	t.Commods = append(t.Commods, r)
+	t.lock.Unlock()
+}
+
+type DATATERM struct {
+	Data  func(t *TMP) DATA
+	Terms []func(t interface{})
+}
+
+type RdsSendStruct struct {
+	Key      string
+	Commands []RdsCommand
+}
+type RdsCommand struct {
+	Cmd string
+	V   []interface{}
+}
+
+
+func (t *TMP) EXEC() (code int) {
+	t.Commods = []*RdsSendStruct{}
+	dt, ok := TermListMap[t.Tag]
+	if !ok {
+		return models.ErrMethodNotFount
+	}
+	c := dt.Data(t)
+	if err := c.Parse(); err != nil {
+		return models.ErrData
+	}
+	t.WG.Add(len(dt.Terms))
+	for _, f := range dt.Terms {
+		go f(c)
+	}
+	t.WG.Wait()
+	if t.Code == 0 && len(t.Commods) != 0 {
+		go SendRdsCommands(t.Tag, t.Commods)
+	}
+	return t.Code
+}
+func SendRdsCommands(tag string, commands []*RdsSendStruct) {
+	conn := utils.NewRedisConn(tag)
+	defer conn.Close()
+	conn.Dos("MULTI")
+	defer conn.Dos("EXEC")
+	var k string
+	for _, cs := range commands {
+		k = cs.Key
+		for _, c := range cs.Commands {
+			c.V = append([]interface{}{k}, c.V...)
+			conn.Sends(c.Cmd, c.V...)
+		}
+	}
+
+}
+
+type DATA interface {
+	Parse() error
+}
+type Term interface{
+  SetConfig(c *models.TermConfig)
+  Exec(t interface{})
+  }
+  

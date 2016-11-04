@@ -3,9 +3,11 @@ package fly
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"flysnow/models"
 	"flysnow/utils"
 	"net"
 	"sync"
+	"time"
 )
 
 var (
@@ -49,6 +51,9 @@ type ConnStruct struct {
 	conn   net.Conn
 	reader chan []byte
 	connid string
+	start  time.Time
+	ts     int64
+	tn     int64
 }
 type connResp struct {
 	connid string
@@ -63,6 +68,7 @@ func ConnWrite() {
 			if v, ok := ConnMaps.Get(connresp.connid); ok {
 				v.conn.Write(RespPacket(connresp.code, connresp.body))
 			}
+
 		}
 	}
 }
@@ -72,7 +78,7 @@ func RespPacket(code int, body interface{}) []byte {
 	result := []byte(endId)
 	result = append(result, utils.IntToBytes(code)...)
 	if code != 0 {
-		body = ErrMsgMap[code]
+		body = models.ErrMsgMap[code]
 	}
 	b := utils.JsonEncode(body, false)
 	result = append(result, utils.IntToBytes(len(b))...)
@@ -217,7 +223,7 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 			body := buffer[cursor-bodylen : cursor]
 			cursor += RespLength
 			if v, ok := handleFuncs[op]; !ok {
-				ConnRespChannel <- &connResp{conn.connid, ErrOpId, nil}
+				ConnRespChannel <- &connResp{conn.connid, models.ErrOpId, nil}
 			} else {
 				if cal, ok := v[string(tagdata)]; ok {
 					go cal.reader(&BodyData{
@@ -228,7 +234,7 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 						NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
 					})
 				} else {
-					ConnRespChannel <- &connResp{conn.connid, ErrMethodNotFount, nil}
+					ConnRespChannel <- &connResp{conn.connid, models.ErrMethodNotFount, nil}
 				}
 			}
 		}

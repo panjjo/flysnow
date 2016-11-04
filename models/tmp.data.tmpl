@@ -1,0 +1,30 @@
+package tmp
+
+import (
+	"flysnow/models"
+	"flysnow/snow"
+	"flysnow/utils"
+)
+
+type {{name}}ReqData struct {
+  {{requestdata}}
+}
+
+func New{{name}}(t *TMP) DATA {
+	return &{{name}}{t, nil}
+}
+
+type {{name}} struct {
+	*TMP
+	req *{{name}}ReqData
+}
+
+func (t *{{name}}) Parse() error {
+	t.req = &{{name}}ReqData{}
+	err := utils.JsonDecode(t.B, t.req)
+  if t.req.STime==0{
+    t.req.STime=utils.GetNowSec()
+    }
+	return err
+}
+

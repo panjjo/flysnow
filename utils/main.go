@@ -5,10 +5,99 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 )
+
+var DurationMap = map[string]func(t, num int64) int64{
+	"s":  durationS,
+	"h":  durationH,
+	"d":  durationD,
+	"m":  durationM,
+	"sl": durationSL,
+	"hl": durationHL,
+	"dl": durationDL,
+	"ml": durationML,
+}
+
+func durationS(t, num int64) int64 {
+	return t - t%num + num
+}
+func durationH(t, num int64) int64 {
+	num = num * 60 * 60
+	return t - t%num + num
+}
+func durationD(t, num int64) int64 {
+	num = num * 60 * 60 * 24
+	return t - t%num + num
+}
+func durationM(t, num int64) int64 {
+	sm := Sec2Str("200601", t)
+	year, _ := strconv.ParseInt(sm[:4], 10, 64)
+	month := sm[4:]
+	start, _ := strconv.ParseInt(month, 10, 64)
+	end := start + num + 1
+	year += end / 12
+	end = end % 12
+	return Str2Sec("200601", fmt.Sprintf("%4d%02d", year, end))
+}
+func durationSL(e, num int64) int64 {
+	return e - num
+}
+func durationHL(e, num int64) int64 {
+	return e - num*60*60
+}
+func durationDL(e, num int64) int64 {
+	return e - num*60*60*24
+}
+func durationML(e, num int64) int64 {
+	sm := Sec2Str("20060102 15:04:05", e)
+	year, _ := strconv.ParseInt(sm[:4], 10, 64)
+	month := sm[4:6]
+	other := sm[6:]
+	start, _ := strconv.ParseInt(month, 10, 64)
+	end := start - num
+	year += end / 12
+	end = end % 12
+	if end == 0 {
+		year += -1
+		end = 12
+	}
+	return e - Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%02d%s", year, end, other))
+}
+
+type Timer struct {
+	start   time.Time
+	n       int64
+	ts      int64
+	tsone   int64
+	AutoEnd int64
+	Name    string
+}
+
+func (t *Timer) Start() {
+	t.start = time.Now()
+}
+func (t *Timer) End() {
+	t.n += 1
+	t.ts += time.Since(t.start).Nanoseconds()
+	if t.AutoEnd != 0 {
+		if t.n%t.AutoEnd == 0 {
+			t.tsone = t.ts / t.n
+			Log.Error("name:%s,ts:%vs,tsone:%vus", t.Name, t.ts/1000000000, t.tsone/1000)
+			t.n = 0
+			t.ts = 0
+		}
+	}
+}
+func (t *Timer) Stop() {
+}
+func (t *Timer) Count() int64 {
+	return t.n
+}
 
 var (
 	b   []byte

@@ -1,0 +1,28 @@
+
+type {{termname}} struct {
+	Config   *models.TermConfig
+	rotateat int64
+}
+
+func (t *{{termname}}) Exec(s interface{}) {
+	commands := RdsSendStruct{}
+	d := s.(*{{name}})
+  {{exec}}
+
+	if len(commands.Commands) > 0 {
+
+		key := utils.GetKey(*d.req, t.Config.Key)
+		key.Key = models.RedisKT + "_" + d.Tag + "_" + key.Key
+		commands.Key = key.Key
+		now := utils.GetNowSec()
+		if t.rotateat < now {
+			snow.Rotate(&snow.SnowSys{key, nil, d.Tag, "{{term}}", d.req.STime}, []models.Snow{})
+			t.rotateat = now
+		}
+		d.AddCommods(&commands)
+	}
+	d.WG.Done()
+}
+func (t *{{termname}}) SetConfig(c *models.TermConfig) {
+	t.Config = c
+}

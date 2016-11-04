@@ -1,0 +1,29 @@
+package tmp
+
+import (
+	"flysnow/models"
+	"flysnow/utils"
+)
+
+var TermListMap map[string]*DATATERM
+var termmap = map[string]Term{
+  {{termmap}}
+}
+var termconfigstr = `{{termconfigstr}}`
+
+var TagList []string
+
+func init() {
+  {{init}}
+	TermConfigMap := map[string]map[string]*models.TermConfig{}
+	utils.JsonDecode([]byte(termconfigstr), &TermConfigMap)
+	for name, terms := range TermConfigMap {
+		TagList = append(TagList, name)
+		for termname, config := range terms {
+			termmap[name+termname].SetConfig(config)
+		}
+	}
+	TermListMap = map[string]*DATATERM{
+    {{termlistmap}}
+  }
+}
