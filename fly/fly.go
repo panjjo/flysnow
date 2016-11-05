@@ -87,6 +87,7 @@ func RespPacket(code int, body interface{}) []byte {
 }
 
 func StartServer() {
+	Init()
 	Host = utils.FSConfig.StringDefault("http.addr", "")
 	Port = utils.FSConfig.StringDefault("http.port", "22258")
 	netListen, err := net.Listen("tcp", Host+":"+Port)

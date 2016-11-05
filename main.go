@@ -2,6 +2,7 @@ package main
 
 import (
 	"flysnow/fly"
+	_ "flysnow/tmp"
 	_ "flysnow/utils"
 	"log"
 	"net/http"

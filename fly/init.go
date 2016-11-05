@@ -15,7 +15,7 @@ type ListenChanFunc interface {
 	reader(data *BodyData)
 }
 
-func init() {
+func Init() {
 	log = utils.Log
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -31,17 +31,14 @@ func init() {
 	}
 	//calculation
 	handle := &Calculation{}
+	stat := &Statistics{}
 	for _, tag := range models.TagList {
 		handleFuncs[2][tag] = handle
+		handleFuncs[1][tag] = stat
 		//handle.initchan()
 		utils.InitRedis(tag)
 		utils.MgoInit(tag)
 	}
-	////stat
-	//stat := &Statistics{}
-	//for _, tag := range instance.TagList {
-	//handleFuncs[1][tag] = stat
-	//}
 
 	ConnRespChannel = make(chan *connResp, 100)
 }
