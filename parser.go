@@ -390,7 +390,7 @@ func complexTermFilter(f []interface{}, child_type string) (str string, return_t
 					str := ""
 					switch tf.(type) {
 					case string:
-						if tf.(string)[:1] == "@" {
+						if len(tf.(string)) > 0 && tf.(string)[:1] == "@" {
 							if vt, ok := datastruct.request[tf.(string)[1:]]; ok {
 								vtype = vt.(string)
 								param = append(param, "d.req."+strings.ToUpper(tf.(string)[1:]))
