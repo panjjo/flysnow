@@ -9,6 +9,7 @@ var (
 	Err *EventErr
 )
 var TagList []string
+var TermConfigMap map[string]map[string]*TermConfig
 
 type EventErr struct {
 	Code int

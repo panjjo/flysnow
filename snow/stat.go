@@ -87,8 +87,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	//获取数据
 	tl := []map[string]interface{}{}
-	//rdsk := models.RedisKT + "_" + tag + "_" + utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key)
-	rdsk := ""
+	rdsk := models.RedisKT + "_" + tag + "_" + utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key)
 	//get from redis
 	rdsconn := utils.NewRedisConn(tag)
 	keys, err := rdsconn.Dos("KEYS", rdsk)

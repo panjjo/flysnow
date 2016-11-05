@@ -9,7 +9,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -209,13 +208,16 @@ func BytesToInt(b []byte) int {
 	return int(x)
 }
 func main() {
-	InitRedis()
+	flysnow, _ := Connection("192.168.1.90", 22258, "shop")
+	res, err := flysnow.Stat(&StatQuery{Term: "shop"})
+	fmt.Println(res, err)
+	/*InitRedis()
 	wg := sync.WaitGroup{}
 	wg.Add(100000)
 	sn := time.Now()
 	for x := 0; x < 2; x++ {
 		go func() {
-			flysnow, _ := Connection("192.168.1.90", 22258, "apis")
+			flysnow, _ := Connection("192.168.1.9", 22258, "apis")
 			for i := 0; i < 50000; i++ {
 				fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
 				if err != nil {
@@ -228,7 +230,7 @@ func main() {
 		}()
 	}
 	wg.Wait()
-	fmt.Println(time.Since(sn).Nanoseconds() / 100000)
+	fmt.Println(time.Since(sn).Nanoseconds() / 100000)*/
 }
 
 /**
