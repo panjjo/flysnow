@@ -8,6 +8,7 @@ var (
 	err error
 	Err *EventErr
 )
+var TagList []string
 
 type EventErr struct {
 	Code int

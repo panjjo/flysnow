@@ -1,6 +1,7 @@
 package fly
 
 import (
+	"flysnow/models"
 	"flysnow/utils"
 	"runtime"
 )
@@ -29,8 +30,8 @@ func init() {
 		// "adddata",    //5:添加统计数据
 	}
 	//calculation
-	for _, tag := range []string{"apis"} {
-		handle := &Calculation{}
+	handle := &Calculation{}
+	for _, tag := range models.TagList {
 		handleFuncs[2][tag] = handle
 		//handle.initchan()
 		utils.InitRedis(tag)
