@@ -193,7 +193,7 @@ func complexDoFuncSumList(f []interface{}) (str string) {
 		os.Exit(1)
 	}
 	fkn := ""
-	if f[1].(string)[:1] == "@" {
+	if len(f[1].(string)) > 0 && f[1].(string)[:1] == "@" {
 		fp := f[1].(string)[1:]
 		if drt, ok := datastruct.request[fp]; ok {
 			if drt.(string) != "$rangelist" {
@@ -249,7 +249,7 @@ func complexDoFuncSum(f []interface{}) (str string) {
 	tvl := ""
 	switch f[2].(type) {
 	case string:
-		if f[2].(string)[:1] == "@" {
+		if len(f[2].(string)) > 0 && f[2].(string)[:1] == "@" {
 			fp := f[2].(string)[1:]
 			if drt, ok := datastruct.request[fp]; ok {
 				if drt.(string) == "$rangelist" {
@@ -257,7 +257,7 @@ func complexDoFuncSum(f []interface{}) (str string) {
 						"the second param", f[1], "type", drt, " but want float64")
 					os.Exit(1)
 				}
-				tvl = "d.req." + f[2].(string)[1:]
+				tvl = "d.req." + strings.ToUpper(f[2].(string)[1:])
 			} else {
 				fmt.Println("parser ", datastruct.name, termstruct.name, "do err:op", car, " Not Found Key ", fp)
 				os.Exit(1)
@@ -288,7 +288,7 @@ func complexTermFilter(f []interface{}, child_type string) (str string, return_t
 	car := f[0]
 	switch car.(type) {
 	case string:
-		if car.(string)[:1] == "$" {
+		if len(car.(string)) > 0 && car.(string)[:1] == "$" {
 			funcname := car.(string)[1:]
 			if fsf, ok := datastruct.funcsmap[funcname]; ok {
 				if fsf.ReturnType[0] != child_type && child_type != "eq" {
