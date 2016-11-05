@@ -87,7 +87,7 @@ func (t *Timer) End() {
 	if t.AutoEnd != 0 {
 		if t.n%t.AutoEnd == 0 {
 			t.tsone = t.ts / t.n
-			Log.Error("name:%s,ts:%vs,tsone:%vus", t.Name, t.ts/1000000000, t.tsone/1000)
+			Log.Error("name:%s,ts:%vms,tsone:%vus", t.Name, t.ts/1000000, t.tsone/1000)
 			t.n = 0
 			t.ts = 0
 		}

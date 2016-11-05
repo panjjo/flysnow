@@ -58,7 +58,6 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 	end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 	start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 	snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-	utils.Log.Error(snowsys.Key, start, end)
 	return
 
 }

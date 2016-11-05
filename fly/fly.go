@@ -7,7 +7,6 @@ import (
 	"flysnow/utils"
 	"net"
 	"sync"
-	"time"
 )
 
 var (
@@ -51,9 +50,6 @@ type ConnStruct struct {
 	conn   net.Conn
 	reader chan []byte
 	connid string
-	start  time.Time
-	ts     int64
-	tn     int64
 }
 type connResp struct {
 	connid string

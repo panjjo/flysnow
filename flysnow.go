@@ -210,113 +210,13 @@ func BytesToInt(b []byte) int {
 }
 func main() {
 	InitRedis()
-	rdk := "fs_apis_counts"
-	RedisDo("DEL", rdk)
-	//for t := 0; t < 10; t++ {
-	//var s int64
-	//sn := time.Now().Unix()
-	//for x := 0; x < 2; x++ {
-	//go func() {
-	//flysnow, _ := Connection("192.168.1.90", 22258, "apis")
-	//for i := 0; i <= 50000; i++ {
-	//fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
-	//if fsres.Code != 0 {
-	//fmt.Println(fsres.Code)
-	//}
-	//if s1 := time.Now().Unix(); s1 > s {
-	//s = s1
-	//}
-	//}
-	//flysnow.Close()
-	//}()
-	//}
-	//time.Sleep(30 * time.Second)
-	//fmt.Println("2*50000  t:", sn-s)
-	//res, _ := RedisDo("HGETALL", rdk)
-	//RedisDo("DEL", rdk)
-	//ttt := res.([]interface{})
-	//tsdd := map[string]interface{}{}
-	//for ti := 0; ti < len(ttt); ti = ti + 2 {
-	//tsdd[string(ttt[ti].([]byte))] = string(ttt[ti+1].([]byte))
-	//}
-	//fmt.Println("times:", t, "counts:", tsdd["total"])
-	//}
-	//for t := 0; t < 10; t++ {
-	//var s int64
-	//sn := time.Now().Unix()
-	//for x := 0; x < 5; x++ {
-	//go func() {
-	//flysnow, _ := Connection("192.168.1.90", 22258, "apis")
-	//for i := 0; i <= 20000; i++ {
-	//fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
-	//if fsres.Code != 0 {
-	//fmt.Println(fsres.Code)
-	//}
-	//if s1 := time.Now().Unix(); s1 > s {
-	//s = s1
-	//}
-	//}
-	//flysnow.Close()
-	//}()
-	//}
-	//time.Sleep(30 * time.Second)
-	//fmt.Println("5*20000  t:", sn-s)
-	//res, _ := RedisDo("HGETALL", rdk)
-	//RedisDo("DEL", rdk)
-	//ttt := res.([]interface{})
-	//tsdd := map[string]interface{}{}
-	//for ti := 0; ti < len(ttt); ti = ti + 2 {
-	//tsdd[string(ttt[ti].([]byte))] = string(ttt[ti+1].([]byte))
-	//}
-	//fmt.Println("times:", t, "counts:", tsdd["total"])
-	//}
-	//for t := 0; t < 10; t++ {
-	//var s int64
-	//sn := time.Now().Unix()
-	//for x := 0; x < 10; x++ {
-	//go func() {
-	//flysnow, _ := Connection("192.168.1.90", 22258, "apis")
-	//for i := 0; i <= 10000; i++ {
-	//fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
-	//if err != nil {
-	//fmt.Println(err)
-	//}
-	//if fsres.Code != 0 {
-	//fmt.Println(fsres.Code)
-	//}
-	//if s1 := time.Now().Unix(); s1 > s {
-	//s = s1
-	//}
-	//}
-	//flysnow.Close()
-	//}()
-	//}
-	//time.Sleep(30 * time.Second)
-	//fmt.Println("10*10000  t:", sn-s)
-	//res, _ := RedisDo("HGETALL", rdk)
-	//RedisDo("DEL", rdk)
-	//ttt := res.([]interface{})
-	//tsdd := map[string]interface{}{}
-	//for ti := 0; ti < len(ttt); ti = ti + 2 {
-	//tsdd[string(ttt[ti].([]byte))] = string(ttt[ti+1].([]byte))
-	//}
-	//fmt.Println("times:", t, "counts:", tsdd["total"])
-	//}
-	//for t := 0; t < 10; t++ {
-
 	wg := sync.WaitGroup{}
-	wg.Add(50000)
+	wg.Add(100000)
 	sn := time.Now()
 	for x := 0; x < 2; x++ {
 		go func() {
 			flysnow, _ := Connection("192.168.1.90", 22258, "apis")
-			for i := 0; i < 25000; i++ {
+			for i := 0; i < 50000; i++ {
 				fsres, err := flysnow.Send(map[string]interface{}{"api": "user.add", "code": fmt.Sprintf("%d", i%10), "appkey": "1001"})
 				if err != nil {
 					fmt.Println(err)
@@ -329,14 +229,6 @@ func main() {
 	}
 	wg.Wait()
 	fmt.Println(time.Since(sn).Nanoseconds() / 100000)
-	res, _ := RedisDo("HGETALL", rdk)
-	RedisDo("DEL", rdk)
-	ttt := res.([]interface{})
-	tsdd := map[string]interface{}{}
-	for ti := 0; ti < len(ttt); ti = ti + 2 {
-		tsdd[string(ttt[ti].([]byte))] = string(ttt[ti+1].([]byte))
-	}
-	//}
 }
 
 /**
