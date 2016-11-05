@@ -11,14 +11,13 @@ var termmap = map[string]Term{
 }
 var termconfigstr = `{{termconfigstr}}`
 
-var TagList []string
 
 func init() {
   {{init}}
 	TermConfigMap := map[string]map[string]*models.TermConfig{}
 	utils.JsonDecode([]byte(termconfigstr), &TermConfigMap)
 	for name, terms := range TermConfigMap {
-		TagList = append(TagList, name)
+		models.TagList = append(models.TagList, name)
 		for termname, config := range terms {
 			termmap[name+termname].SetConfig(config)
 		}
