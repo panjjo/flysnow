@@ -197,6 +197,25 @@ func BytesToInt(b []byte) int {
 	return int(x)
 }
 
+//整形转换成字节
+func Int64ToBytes(n int64) []byte {
+	x := int64(n)
+
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	binary.Write(bytesBuffer, binary.BigEndian, x)
+	return bytesBuffer.Bytes()
+}
+
+//字节转换成整形
+func BytesToInt64(b []byte) int64 {
+	bytesBuffer := bytes.NewBuffer(b)
+
+	var x int64
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+
+	return int64(x)
+}
+
 //返回当前系统时间戳
 func GetNowSec() int64 {
 	return time.Now().Unix()

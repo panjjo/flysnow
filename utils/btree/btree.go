@@ -62,6 +62,7 @@ type Item interface {
 	// If !a.Less(b) && !b.Less(a), we treat this to mean a == b (i.e. we can only
 	// hold one of either a or b in the tree).
 	Less(than Item) bool
+	Trans(b Item) Item
 }
 
 const (
@@ -271,7 +272,8 @@ func (n *node) insert(item Item, maxItems int) Item {
 	i, found := n.items.find(item)
 	if found {
 		out := n.items[i]
-		n.items[i] = item
+		//n.items[i] = item
+		n.items[i] = item.Trans(out)
 		return out
 	}
 	if len(n.children) == 0 {
@@ -287,7 +289,8 @@ func (n *node) insert(item Item, maxItems int) Item {
 			i++ // we want second split node
 		default:
 			out := n.items[i]
-			n.items[i] = item
+			n.items[i] = item.Trans(out)
+			//n.items[i] = item
 			return out
 		}
 	}
@@ -735,4 +738,7 @@ type Int int
 // Less returns true if int(a) < int(b).
 func (a Int) Less(b Item) bool {
 	return a < b.(Int)
+}
+func (a Int) Trans(b Item) Item {
+	return a
 }

@@ -22,7 +22,10 @@ type {{name}} struct{
   }
 var {{names}}  func(key string,t int64)bool
 func (f *{{name}})Do(key string,t int64)bool{
-  res:=f.GetSet(utils.FilterBtreeItem{Key:f.name+key,T:t})
+  res,update:=f.GetSet(utils.FilterBtreeItem{Key:f.name+key,T:t})
+  if !update || f.offset==0{
+    return !update
+    }
   if f.whence==0{
     return res.T<t-utils.DurationMap[f.duration+"l"](t,f.offset)
   }else{

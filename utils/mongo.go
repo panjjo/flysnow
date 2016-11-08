@@ -13,8 +13,8 @@ func MgoInit(tag string) {
 	FSConfig.SetMod(tag)
 	// Let's try to connect to Mongo DB right upon starting revel but don't
 	// raise an error. Errors will be handled if there is actually a request
-	h := FSConfig.StringDefault("revmgo.dial", "localhost")
-	MgoSessionDuplType[tag] = FSConfig.StringDefault("revmgo.dupl", "clone")
+	h := FSConfig.StringDefault("mgo.Host", "localhost")
+	MgoSessionDuplType[tag] = FSConfig.StringDefault("mgo.Dupl", "clone")
 	MongoSession[tag], err = mgo.Dial(h)
 	if err != nil {
 		// Only warn since we'll retry later for each request
