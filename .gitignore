@@ -2,5 +2,4 @@ tmp/*
 *.log
 data/*
 main
-*.conf
 fs_btree
