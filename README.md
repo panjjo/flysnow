@@ -40,7 +40,7 @@
        "reqdata":{                      #请求数据结构
          "shopid":"string",             #key为字段名，value为字段值类型(所支持的字段类型请看下面)
          "orderid":"string",
-         "total":"int64",
+         "total":"float64",
          "items":"$rangelist"           #$开头的为系统自定义结构(详情看 数据类型)
          }
        "filter":[                       #自定义过滤器
@@ -99,7 +99,7 @@
    string  字符串
    float64 数值型（为了方便计算，int int64 float32 float64 统一设置为float64)
    bool    布尔型
-   $rangelist 列表型 此类型主要用户循环计算 如计算店铺内所有商品销售总额，数据源为order itmes为$rangelist类型 [{key:key1,value:value1},{key:key2,value:value2}]
+   $rangelist 列表型 此类型主要用于循环计算 如计算店铺内所有商品销售总额，数据源为order itmes为$rangelist类型 [{key:key1,value:value1},{key:key2,value:value2}]
                   使用++运算符表示执行循环操作 将统计数据的key1 和key2的值分别加value1,value2
 
 自定义函数
@@ -126,8 +126,14 @@
    ||         bool,bool,bool.....                 bool
    $filter    string                              bool            过滤器类型函数，系统自动加入stime参数
 
-  Do                                                              Do 类型操作是针对redis操作 +表示key.value+value
+  Do                                                              Do 类型操作是针对redis操作 +=表示key.value+value
   操作符        参数                            
-   rangesum         $rangelist                        
+   rangesum    $rangelist                        
    +=          interface,float64
+
+  示例：
+  do:
+    ["+=","@shopid",["+","@order_total","@order_discount"]]       #表示给key为shopid的值加上（order_total+order_discount)
+                                                                       shopid+=order_total+order_discount
+                                                                  #只要使用合适，可以无限嵌套
 
