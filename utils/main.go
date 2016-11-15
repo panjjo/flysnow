@@ -66,7 +66,7 @@ func durationML(e, num int64) int64 {
 		year += -1
 		end = 12
 	}
-	return e - Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%02d%s", year, end, other))
+	return Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%02d%s", year, end, other))
 }
 
 type Timer struct {
