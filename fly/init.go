@@ -22,6 +22,7 @@ func Init() {
 	ConnMaps = ConnMapStruct{m: map[string]*ConnStruct{}}
 
 	handleFuncs = map[int]map[string]ListenChanFunc{
+		0: map[string]ListenChanFunc{}, //Ping
 		1: map[string]ListenChanFunc{}, //统计
 		2: map[string]ListenChanFunc{}, //计算
 		// 3: Calculation,

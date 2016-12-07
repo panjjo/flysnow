@@ -5,7 +5,6 @@ import (
 )
 
 type Statistics struct {
-	channel chan *BodyData
 }
 
 func (s *Statistics) reader(d *BodyData) {

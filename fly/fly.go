@@ -222,6 +222,10 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 			if v, ok := handleFuncs[op]; !ok {
 				ConnRespChannel <- &connResp{conn.connid, models.ErrOpId, nil}
 			} else {
+				//check heardbeat
+				if op == 0 {
+					ConnRespChannel <- &connResp{conn.connid, 0, nil}
+				}
 				if cal, ok := v[string(tagdata)]; ok {
 					go cal.reader(&BodyData{
 						Op:       op,
