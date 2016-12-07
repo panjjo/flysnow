@@ -32,7 +32,7 @@ func durationH(t, num int64) int64 {
 }
 func durationD(t, num int64) int64 {
 	num = num * 60 * 60 * 24
-	return t - t%num + num
+	return t - t%num + num - 8*60*60
 }
 func durationM(t, num int64) int64 {
 	sm := Sec2Str("200601", t)
