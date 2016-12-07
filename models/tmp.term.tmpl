@@ -2,6 +2,7 @@
 type {{termname}} struct {
 	Config   *models.TermConfig
 	rotateat int64
+  rotateatkey string
 }
 
 func (t *{{termname}}) Exec(s interface{}) {
@@ -15,9 +16,10 @@ func (t *{{termname}}) Exec(s interface{}) {
 		key.Key = models.RedisKT + "_" + d.Tag + "_" + key.Key
 		commands.Key = key.Key
 		now := utils.GetNowSec()
-		if t.rotateat < now {
+		if (t.rotateatkey != key.Key) || t.rotateat < now {
 			snow.Rotate(&snow.SnowSys{key, nil, d.Tag, "{{term}}", d.req.STime}, t.Config.Snow)
 			t.rotateat = now
+      t.rotateatkey = key.Key
 		}
 		d.AddCommods(&commands)
 	}
