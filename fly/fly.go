@@ -88,18 +88,18 @@ func StartServer() {
 	Port = utils.FSConfig.StringDefault("http.port", "22258")
 	netListen, err := net.Listen("tcp", Host+":"+Port)
 	if err != nil {
-		log.ERROR(err.Error())
+		log.Error(err.Error())
 	}
 	defer netListen.Close()
 	//TODO:Check auth
 	go ConnWrite()
 
-	log.Info("Server Start Succ,Listen:%v", Port)
+	log.INFO.Printf("Server Start Succ,Listen:%v", Port)
 	buffer := make([]byte, 4)
 
 	for {
 		if _, err := rand.Read(buffer); err != nil {
-			log.ERROR(err.Error())
+			log.Error(err.Error())
 		}
 
 		connid := hex.EncodeToString(buffer)
@@ -117,7 +117,7 @@ func StartServer() {
 			connid: connid,
 		}
 		ConnMaps.Put(connid, expconn)
-		log.Info("new connect from:%v,connid:%v,connect_num(%d)", conn.RemoteAddr().String(), connid, ConnMaps.Len())
+		log.INFO.Printf("new connect from:%v,connid:%v,connect_num(%d)", conn.RemoteAddr().String(), connid, ConnMaps.Len())
 		go handleConnection(expconn)
 	}
 }
@@ -133,7 +133,7 @@ func handleConnection(expconn *ConnStruct) {
 	for {
 		n, err := expconn.conn.Read(buffer)
 		if err != nil {
-			log.Warn(" connection :%v ,error: %v", expconn.conn.RemoteAddr().String(), err)
+			log.WARN.Printf(" connection :%v ,error: %v", expconn.conn.RemoteAddr().String(), err)
 			return
 		}
 		tmpBuffer = Unpack(append(tmpBuffer, buffer[:n]...), expconn)
@@ -225,17 +225,18 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 				//check heardbeat
 				if op == 0 {
 					ConnRespChannel <- &connResp{conn.connid, 0, nil}
-				}
-				if cal, ok := v[string(tagdata)]; ok {
-					go cal.reader(&BodyData{
-						Op:       op,
-						Body:     body,
-						Connid:   conn.connid,
-						Tag:      string(tagdata),
-						NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
-					})
 				} else {
-					ConnRespChannel <- &connResp{conn.connid, models.ErrMethodNotFount, nil}
+					if cal, ok := v[string(tagdata)]; ok {
+						go cal.reader(&BodyData{
+							Op:       op,
+							Body:     body,
+							Connid:   conn.connid,
+							Tag:      string(tagdata),
+							NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
+						})
+					} else {
+						ConnRespChannel <- &connResp{conn.connid, models.ErrMethodNotFount, nil}
+					}
 				}
 			}
 		}

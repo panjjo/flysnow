@@ -30,20 +30,40 @@ func GetKey(obj interface{}, keys []string) *SnowKey {
 	result.Key = strings.Join(strs, "_")
 	return result
 }
-func GetRdsKeyByIndex(d map[string]interface{}, keys []string) string {
-	strs := []string{}
+func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []string {
+	strs := [][]string{[]string{""}}
 	data := map[string]interface{}{}
 	for k, v := range d {
 		data["@"+k] = v
 	}
 	for _, key := range keys {
 		if v, ok := data[key]; ok {
-			strs = append(strs, key+"_"+strings.Replace(v.(string), "_", ".", -1))
+			if v1, ok1 := v.(string); ok1 {
+				for i, strlist := range strs {
+					strs[i] = append(strlist, key+"_"+strings.Replace(v1, "_", ".", -1))
+				}
+			} else if v2, ok2 := v.(map[string]interface{}); ok2 {
+				tmpstrs := [][]string{}
+				for _, str := range strs {
+					for _, ttk := range v2["$in"].([]interface{}) {
+						tmpstrs = append(tmpstrs, append(str, key+"_"+ttk.(string)))
+					}
+				}
+				strs = tmpstrs
+			}
 		} else if key[:1] == "@" {
-			strs = append(strs, key+"_*")
+			for i, strlist := range strs {
+				strs[i] = append(strlist, key+"_*")
+			}
 		} else {
-			strs = append(strs, key)
+			for i, strlist := range strs {
+				strs[i] = append(strlist, key)
+			}
 		}
 	}
-	return strings.Join(strs, "_")
+	result := []string{}
+	for _, str := range strs {
+		result = append(result, strings.Join(str[1:], "_"))
+	}
+	return result
 }

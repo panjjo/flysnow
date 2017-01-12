@@ -1,8 +1,6 @@
 package utils
 
-import (
-	"labix.org/v2/mgo"
-)
+import "gopkg.in/mgo.v2"
 
 var mongoQuery *mgo.Query
 var MongoSession = map[string]*mgo.Session{}
@@ -18,7 +16,7 @@ func MgoInit(tag string) {
 	MongoSession[tag], err = mgo.Dial(h)
 	if err != nil {
 		// Only warn since we'll retry later for each request
-		Log.Error("Could not connect to Mongo DB. Error: %s", err)
+		Log.ERROR.Print("Could not connect to Mongo DB. Error: %s", err)
 	}
 }
 

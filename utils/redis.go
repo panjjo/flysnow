@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 var redispool = map[string]*redis.Pool{}
@@ -17,7 +18,7 @@ func NewRedisConn(tag string) *RedisConn {
 func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, err error) {
 	result, err = r.Con.Do(cmd, args...)
 	if err != nil {
-		Log.Error(err)
+		Log.Error(err.Error())
 	}
 	return
 }
@@ -25,7 +26,7 @@ func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, er
 func (r *RedisConn) Sends(cmd string, args ...interface{}) error {
 	err := r.Con.Send(cmd, args...)
 	if err != nil {
-		Log.Error(err)
+		Log.Error(err.Error())
 	}
 	return err
 }

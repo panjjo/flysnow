@@ -17,10 +17,12 @@ var DurationMap = map[string]func(t, num int64) int64{
 	"h":  durationH,
 	"d":  durationD,
 	"m":  durationM,
+	"y":  durationY,
 	"sl": durationSL,
 	"hl": durationHL,
 	"dl": durationDL,
 	"ml": durationML,
+	"yl": durationYL,
 }
 
 func durationS(t, num int64) int64 {
@@ -39,10 +41,16 @@ func durationM(t, num int64) int64 {
 	year, _ := strconv.ParseInt(sm[:4], 10, 64)
 	month := sm[4:]
 	start, _ := strconv.ParseInt(month, 10, 64)
-	end := start + num + 1
+	end := start + num
 	year += end / 12
 	end = end % 12
 	return Str2Sec("200601", fmt.Sprintf("%4d%02d", year, end))
+}
+func durationY(t, num int64) int64 {
+	sm := Sec2Str("2006", t)
+	year, _ := strconv.ParseInt(sm, 10, 64)
+	year += num
+	return Str2Sec("2006", fmt.Sprintf("%4d", year))
 }
 func durationSL(e, num int64) int64 {
 	return e - num
@@ -62,11 +70,18 @@ func durationML(e, num int64) int64 {
 	end := start - num
 	year += end / 12
 	end = end % 12
-	if end == 0 {
+	if end <= 0 {
 		year += -1
-		end = 12
+		end += 12
 	}
 	return Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%02d%s", year, end, other))
+}
+func durationYL(e, num int64) int64 {
+	sm := Sec2Str("20060102 15:04:05", e)
+	year, _ := strconv.ParseInt(sm[:4], 10, 64)
+	other := sm[4:]
+	year = year - num
+	return Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%s", year, other))
 }
 
 type Timer struct {
@@ -87,7 +102,7 @@ func (t *Timer) End() {
 	if t.AutoEnd != 0 {
 		if t.n%t.AutoEnd == 0 {
 			t.tsone = t.ts / t.n
-			Log.Error("name:%s,ts:%vms,tsone:%vus", t.Name, t.ts/1000000, t.tsone/1000)
+			Log.ERROR.Printf("name:%s,ts:%vms,tsone:%vus", t.Name, t.ts/1000000, t.tsone/1000)
 			t.n = 0
 			t.ts = 0
 		}

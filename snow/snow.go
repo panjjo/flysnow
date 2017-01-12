@@ -4,9 +4,10 @@ import (
 	"flysnow/models"
 	"flysnow/utils"
 	"fmt"
-	"labix.org/v2/mgo/bson"
 	"strconv"
 	"sync"
+
+	"labix.org/v2/mgo/bson"
 )
 
 type SnowSys struct {
@@ -36,6 +37,7 @@ type SnowData struct {
 	Index map[string]interface{}
 	Term  string
 	Tag   string
+	Query bson.M
 }
 
 func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {

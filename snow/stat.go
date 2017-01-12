@@ -4,10 +4,11 @@ import (
 	"flysnow/models"
 	"flysnow/utils"
 	"fmt"
-	"labix.org/v2/mgo/bson"
 	"sort"
 	"strconv"
 	"strings"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 type StatReq struct {
@@ -26,13 +27,13 @@ type StatReq struct {
 func (s *StatReq) GroupKeyRedis(key string, dm map[string]interface{}) {
 	id := ""
 	tm := map[string]string{}
-	if s.IsGroup {
-		tl := strings.Split(key, "_")
-		for i, v := range tl {
-			if v[:1] == "@" {
-				tm[v[1:]] = tl[i+1]
-			}
+	tl := strings.Split(key, "_")
+	for i, v := range tl {
+		if v[:1] == "@" {
+			tm[v[1:]] = tl[i+1]
 		}
+	}
+	if s.IsGroup {
 		for _, i := range s.Group {
 			id += tm[i]
 		}
@@ -54,7 +55,7 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
-		t := d["s_time"].(int64)
+		t := d["e_time"].(int64)
 		e_time := utils.DurationMap[s.SpanD](t, s.Span)
 		s_time := utils.DurationMap[s.SpanD+"l"](e_time, s.Span)
 		if d["e_time"].(int64) <= e_time && s_time <= d["s_time"].(int64) {
@@ -73,6 +74,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	if err != nil {
 		return err, nil
 	}
+	utils.Log.ERROR.Printf("%+v", req)
 	if len(req.Group) != 0 {
 		req.IsGroup = true
 	}
@@ -83,33 +85,41 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	mc := mgos.DB(models.MongoDT + tag).C(req.Term)
 	query := bson.M{}
 	if len(req.Index) > 0 {
-		query["index"] = req.Index
+		for k, v := range req.Index {
+			query["index."+k] = v
+		}
 	}
 	//获取数据
 	tl := []map[string]interface{}{}
-	rdsk := models.RedisKT + "_" + tag + "_" + utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key)
-	//get from redis
-	rdsconn := utils.NewRedisConn(tag)
-	keys, err := rdsconn.Dos("KEYS", rdsk)
-	for _, k := range keys.([]interface{}) {
-		tk := string(k.([]byte))
-		rdsd, err := rdsconn.Dos("HGETALL", tk)
-		tb := rdsd.([]interface{})
-		if err == nil && len(tb) != 0 {
-			dm := map[string]interface{}{}
-			for i := 0; i < len(tb); i = i + 2 {
-				dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
-			}
-			if dm["s_time"].(int64) >= req.STime && (dm["e_time"].(int64) <= req.ETime || req.ETime == 0) {
-				req.GroupKeyRedis(tk, dm)
-				tl = append(tl, dm)
+	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key) {
+		rdsk := models.RedisKT + "_" + tag + "_" + tmpkey
+		//get from redis
+		rdsconn := utils.NewRedisConn(tag)
+		defer rdsconn.Close()
+		keys, err := rdsconn.Dos("KEYS", rdsk)
+		if err != nil {
+			continue
+		}
+		for _, k := range keys.([]interface{}) {
+			tk := string(k.([]byte))
+			rdsd, err := rdsconn.Dos("HGETALL", tk)
+			tb := rdsd.([]interface{})
+			if err == nil && len(tb) != 0 {
+				dm := map[string]interface{}{}
+				for i := 0; i < len(tb); i = i + 2 {
+					dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
+				}
+				if dm["s_time"].(int64) >= req.STime && (dm["e_time"].(int64) <= req.ETime || req.ETime == 0) {
+					req.GroupKeyRedis(tk, dm)
+					tl = append(tl, dm)
+				}
 			}
 		}
 	}
 	//redis end
 	//mgo start
 	datas := []SnowData{}
-	mc.Find(query).All(&datas)
+	err = mc.Find(query).All(&datas)
 	if len(datas) > 0 {
 		for _, data := range datas {
 			groupkey := req.GroupKeyMgo(data.Index)
@@ -122,7 +132,6 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			}
 		}
 	}
-
 	//group and span
 	groupdata := map[string]map[string]interface{}{}
 	for _, l := range tl {
@@ -146,23 +155,42 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 
 	sortdata := []interface{}{}
+	total := map[string]interface{}{}
 	for _, v := range groupdata {
 		sortdata = append(sortdata, v)
+		for lk, lv := range v {
+			if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
+				if llv, ok := total[lk]; ok {
+					total[lk] = llv.(int64) + lv.(int64)
+				} else {
+					total[lk] = lv
+				}
+			} else {
+				total[lk] = lv
+			}
+		}
 	}
 	//sort
 	if len(req.Sort) == 2 {
 		sortdata = SortMapList(sortdata, req.Sort[0], req.Sort[1].(bool))
 	}
+	lens := len(sortdata)
 	//limit
 	lm := req.Limit + req.Skip
 	if lm != 0 {
-		if lm >= len(sortdata) {
-			sortdata = sortdata[req.Skip:]
+		start, end := 0, 0
+		if lm >= lens {
+			end = lens
 		} else {
-			sortdata = sortdata[req.Skip:lm]
+			end = lm
 		}
+		if req.Skip <= lens {
+			start = req.Skip
+		}
+		sortdata = sortdata[start:end]
 	}
-	return nil, sortdata
+
+	return nil, map[string]interface{}{"num": lens, "list": sortdata, "total": total}
 }
 
 func SortMapList(source []interface{}, name interface{}, asc bool) []interface{} {

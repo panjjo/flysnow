@@ -1,21 +1,20 @@
 package utils
 
 import (
-	"code.google.com/p/log4go"
+	//	"code.google.com/p/log4go"
 	"errors"
 	"flysnow/utils/btree"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/panjjo/log4go"
 )
 
 var Log LogS
 var PWD string
 var FSBtree *FilterBtree
 
-type LogS struct {
-	log4go.Logger
-}
 type FilterBtreeItem struct {
 	Key    string
 	T      int64
@@ -99,13 +98,17 @@ func (fb *FilterBtree) writeFile(item FilterBtreeItem) {
 			fb.offset += len(b)
 		}
 		if _, err := fb.f.WriteAt(b, offset); err != nil {
-			Log.ERROR("fsbtree write to file err:" + err.Error())
+			Log.ERROR.Printf("fsbtree write to file err:" + err.Error())
 		}
 	}
 }
 
-func (l LogS) ERROR(s string) {
-	l.Error(s)
+type LogS struct {
+	*log4go.Logger
+}
+
+func (l LogS) Error(s string) {
+	l.ERROR.Print(s)
 	time.Sleep(1 * time.Second)
 	os.Exit(1)
 }
@@ -118,9 +121,7 @@ func init() {
 	FSConfig = Config{}
 	FSConfig.InitConfig(PWD + "/config/base.conf")
 	FSConfig.SetMod("sys")
-	config := FSConfig.StringDefault("logger.path", "config/logger.xml")
-	Log = LogS{make(log4go.Logger)}
-	Log.LoadConfiguration(config)
+	Log = LogS{log4go.NewLogger(FSConfig.StringDefault("logger.level", "info"))}
 	if FSConfig.IntDefault("filter.Save", 0) == 0 {
 		FSBtree = &FilterBtree{btree.NewBtree(32), 0, false, nil, sync.RWMutex{}}
 	} else {

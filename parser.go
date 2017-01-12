@@ -16,6 +16,7 @@ var S_Expmap = map[string]sExpStruct{
 	"||": sExpStruct{-1, "bool", "bool", " || "},
 	"!=": sExpStruct{2, "bool", "eq", " != "},
 	"+":  sExpStruct{-1, "interface", "eq", " + "},
+	"-":  sExpStruct{-1, "interface", "eq", " - "},
 }
 
 type sExpStruct struct {
@@ -170,7 +171,7 @@ func complexTermDo(f []interface{}) (str string) {
 		os.Exit(1)
 	}
 	switch car {
-	case "+=":
+	case "+=", "-=":
 		return complexDoFuncSum(f)
 	case "rangesum":
 		return complexDoFuncSumList(f)
@@ -280,7 +281,11 @@ func complexDoFuncSum(f []interface{}) (str string) {
 		}
 		tvl = tvl1
 	}
-	str += fmt.Sprintf(`commands.Commands=append(commands.Commands,RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,%s}})`, fkn, tvl)
+	if car == "-=" {
+		str += fmt.Sprintf(`commands.Commands=append(commands.Commands,RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,-%s}})`, fkn, tvl)
+	} else {
+		str += fmt.Sprintf(`commands.Commands=append(commands.Commands,RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,%s}})`, fkn, tvl)
+	}
 	return str
 }
 func complexTermFilter(f []interface{}, child_type string) (str string, return_type string) {
