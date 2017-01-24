@@ -64,6 +64,7 @@ func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 		} else {
 			skip = true
 		}
+		fmt.Println(s_time, e_time, d["s_time"], d["e_time"], skip)
 	}
 	return
 }
@@ -74,7 +75,6 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	if err != nil {
 		return err, nil
 	}
-	utils.Log.ERROR.Printf("%+v", req)
 	if len(req.Group) != 0 {
 		req.IsGroup = true
 	}

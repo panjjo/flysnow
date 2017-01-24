@@ -36,6 +36,22 @@ func durationD(t, num int64) int64 {
 	num = num * 60 * 60 * 24
 	return t - t%num + num - 8*60*60
 }
+
+var weekdaymap = map[string]int64{
+	"Monday":    7,
+	"Tuesday":   6,
+	"Wednesday": 5,
+	"Thursday":  4,
+	"Friday":    3,
+	"Saturday":  2,
+	"Sunday":    1,
+}
+
+func durationW(t, num int64) int64 {
+	weekday := time.Unix(t, 0).Weekday().String()
+	long := weekdaymap[weekday] + 24*60*60 + (num-1)*24*7*60*60
+	return t - t%24*60*60 - 8*60*60 + long
+}
 func durationM(t, num int64) int64 {
 	sm := Sec2Str("200601", t)
 	year, _ := strconv.ParseInt(sm[:4], 10, 64)
@@ -60,6 +76,9 @@ func durationHL(e, num int64) int64 {
 }
 func durationDL(e, num int64) int64 {
 	return e - num*60*60*24
+}
+func durationWL(e, num int64) int64 {
+	return e - num*7*60*60*24
 }
 func durationML(e, num int64) int64 {
 	sm := Sec2Str("20060102 15:04:05", e)
