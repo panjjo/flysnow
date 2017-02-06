@@ -1,12 +1,14 @@
 package fly
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"flysnow/models"
 	"flysnow/utils"
+	"fmt"
+	"math/rand"
 	"net"
 	"sync"
+	"time"
 )
 
 var (
@@ -50,6 +52,7 @@ type ConnStruct struct {
 	conn   net.Conn
 	reader chan []byte
 	connid string
+	msgid  interface{}
 }
 type connResp struct {
 	connid string
@@ -62,6 +65,7 @@ func ConnWrite() {
 		select {
 		case connresp := <-ConnRespChannel:
 			if v, ok := ConnMaps.Get(connresp.connid); ok {
+				fmt.Printf("id:%v response:%v,time:%v\n", connresp.connid, v.msgid, time.Now().Unix())
 				v.conn.Write(RespPacket(connresp.code, connresp.body))
 			}
 
@@ -222,11 +226,17 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 			if v, ok := handleFuncs[op]; !ok {
 				ConnRespChannel <- &connResp{conn.connid, models.ErrOpId, nil}
 			} else {
+				rand.Seed(time.Now().UnixNano())
+				tmpid := fmt.Sprintf("%06d", rand.Intn(100000))
+				conn.msgid = tmpid
+				fmt.Printf("id:%v request:%v,time:%v,op:%v,tag:%v\n", conn.connid, tmpid, time.Now().Unix(), op, string(tagdata))
 				//check heardbeat
 				if op == 0 {
 					ConnRespChannel <- &connResp{conn.connid, 0, nil}
 				} else {
 					if cal, ok := v[string(tagdata)]; ok {
+						fmt.Printf("id:%v request:%v,start \n", conn.connid, tmpid)
+						//check heardbeat
 						go cal.reader(&BodyData{
 							Op:       op,
 							Body:     body,
