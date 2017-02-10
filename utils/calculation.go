@@ -3,6 +3,8 @@ package utils
 import (
 	"reflect"
 	"strings"
+
+	"gopkg.in/mgo.v2/bson"
 )
 
 type SnowKey struct {
@@ -30,8 +32,15 @@ func GetKey(obj interface{}, keys []string) *SnowKey {
 	result.Key = strings.Join(strs, "_")
 	return result
 }
-func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []string {
-	strs := [][]string{[]string{""}}
+
+type ComplexRdsKey struct {
+	keys []string
+	Key  string
+	Re   bool
+}
+
+func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
+	strs := []ComplexRdsKey{}
 	data := map[string]interface{}{}
 	for k, v := range d {
 		data["@"+k] = v
@@ -40,30 +49,94 @@ func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []string {
 		if v, ok := data[key]; ok {
 			if v1, ok1 := v.(string); ok1 {
 				for i, strlist := range strs {
-					strs[i] = append(strlist, key+"_"+strings.Replace(v1, "_", ".", -1))
+					strs[i].keys = append(strlist.keys, key+"_"+strings.Replace(v1, "_", ".", -1))
 				}
 			} else if v2, ok2 := v.(map[string]interface{}); ok2 {
-				tmpstrs := [][]string{}
+				tmpstrs := []ComplexRdsKey{}
 				for _, str := range strs {
 					for _, ttk := range v2["$in"].([]interface{}) {
-						tmpstrs = append(tmpstrs, append(str, key+"_"+ttk.(string)))
+						str.keys = append(str.keys, key+"_"+ttk.(string))
+						tmpstrs = append(tmpstrs, str)
 					}
 				}
 				strs = tmpstrs
 			}
 		} else if key[:1] == "@" {
 			for i, strlist := range strs {
-				strs[i] = append(strlist, key+"_*")
+				strs[i].keys = append(strlist.keys, key+"_*")
+				strs[i].Re = true
 			}
 		} else {
 			for i, strlist := range strs {
-				strs[i] = append(strlist, key)
+				strs[i].keys = append(strlist.keys, key)
 			}
 		}
 	}
-	result := []string{}
-	for _, str := range strs {
-		result = append(result, strings.Join(str[1:], "_"))
+	for i, str := range strs {
+		strs[i].Key = strings.Join(str.keys[1:], "_")
 	}
-	return result
+	return strs
+}
+func DataFilter(data map[string]interface{}, filter bson.M) bool {
+	for k, f := range filter {
+		if k == "$or" {
+			ok := false
+			for _, tmp := range f.([]bson.M) {
+				if DataFilter(data, tmp) {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return false
+			}
+		} else if k == "$and" {
+			for _, tmp := range f.([]bson.M) {
+				if !DataFilter(data, tmp) {
+					return false
+				}
+			}
+		} else {
+			if value, ok := data[k]; !ok {
+				return false
+			} else {
+				switch n := f.(type) {
+				case float64:
+					if n != float64(value.(int64)) {
+						return false
+					}
+				case int64:
+					if n != value.(int64) {
+						return false
+					}
+				case bson.M:
+					for kk, vv := range n {
+						switch kk {
+						case "$gt": //>
+							if vv.(float64) <= data[kk].(float64) {
+								return false
+							}
+						case "$gte":
+							if vv.(float64) < data[kk].(float64) {
+								return false
+							}
+						case "$lt":
+							if vv.(float64) >= data[kk].(float64) {
+								return false
+							}
+						case "$lte":
+							if vv.(float64) > data[kk].(float64) {
+								return false
+							}
+						case "$ne":
+							if vv.(float64) == data[kk].(float64) {
+								return false
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return true
 }

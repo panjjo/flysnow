@@ -14,6 +14,7 @@ import (
 type StatReq struct {
 	Term                    string
 	Index                   bson.M
+	DataQuery               bson.M
 	STime                   int64
 	ETime                   int64
 	Span                    int64
@@ -88,16 +89,25 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			query["index."+k] = v
 		}
 	}
+	if len(req.DataQuery) > 0 {
+		query["data"] = bson.M{"$elemMatch": req.DataQuery}
+	}
 	//获取数据
+	rdsconn := utils.NewRedisConn(tag)
+	defer rdsconn.Close()
 	tl := []map[string]interface{}{}
+
+	var keys interface{}
 	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key) {
-		rdsk := models.RedisKT + "_" + tag + "_" + tmpkey
-		//get from redis
-		rdsconn := utils.NewRedisConn(tag)
-		defer rdsconn.Close()
-		keys, err := rdsconn.Dos("KEYS", rdsk)
-		if err != nil {
-			continue
+		if tmpkey.Re {
+			rdsk := models.RedisKT + "_" + tag + "_" + tmpkey.Key
+			//get from redis
+			keys, err = rdsconn.Dos("KEYS", rdsk)
+			if err != nil {
+				continue
+			}
+		} else {
+			keys = []interface{}{tmpkey.Key}
 		}
 		for _, k := range keys.([]interface{}) {
 			tk := string(k.([]byte))
@@ -131,6 +141,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			}
 		}
 	}
+	//redis end
 	//group and span
 	groupdata := map[string]map[string]interface{}{}
 	for _, l := range tl {
@@ -156,16 +167,18 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
 	for _, v := range groupdata {
-		sortdata = append(sortdata, v)
-		for lk, lv := range v {
-			if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
-				if llv, ok := total[lk]; ok {
-					total[lk] = llv.(int64) + lv.(int64)
+		if utils.DataFilter(v, req.DataQuery) {
+			sortdata = append(sortdata, v)
+			for lk, lv := range v {
+				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
+					if llv, ok := total[lk]; ok {
+						total[lk] = llv.(int64) + lv.(int64)
+					} else {
+						total[lk] = lv
+					}
 				} else {
 					total[lk] = lv
 				}
-			} else {
-				total[lk] = lv
 			}
 		}
 	}
@@ -185,6 +198,8 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 		if req.Skip <= lens {
 			start = req.Skip
+		} else {
+			start = end
 		}
 		sortdata = sortdata[start:end]
 	}
