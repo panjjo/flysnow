@@ -3,8 +3,6 @@ package utils
 import (
 	"reflect"
 	"strings"
-
-	"gopkg.in/mgo.v2/bson"
 )
 
 type SnowKey struct {
@@ -78,12 +76,13 @@ func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
 	}
 	return strs
 }
-func DataFilter(data map[string]interface{}, filter bson.M) bool {
+func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool {
 	for k, f := range filter {
 		if k == "$or" {
 			ok := false
-			for _, tmp := range f.([]bson.M) {
-				if DataFilter(data, tmp) {
+			for _, tmp := range f.([]interface{}) {
+				tm := tmp.(map[string]interface{})
+				if DataFilter(data, tm) {
 					ok = true
 					break
 				}
@@ -92,8 +91,8 @@ func DataFilter(data map[string]interface{}, filter bson.M) bool {
 				return false
 			}
 		} else if k == "$and" {
-			for _, tmp := range f.([]bson.M) {
-				if !DataFilter(data, tmp) {
+			for _, tmp := range f.([]interface{}) {
+				if !DataFilter(data, tmp.(map[string]interface{})) {
 					return false
 				}
 			}
@@ -110,7 +109,7 @@ func DataFilter(data map[string]interface{}, filter bson.M) bool {
 					if n != value.(int64) {
 						return false
 					}
-				case bson.M:
+				case map[string]interface{}:
 					for kk, vv := range n {
 						switch kk {
 						case "$gt": //>
