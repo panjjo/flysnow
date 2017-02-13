@@ -107,7 +107,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				continue
 			}
 		} else {
-			keys = []interface{}{tmpkey.Key}
+			keys = []interface{}{[]byte(models.RedisKT + "_" + tag + "_" + tmpkey.Key)}
 		}
 		for _, k := range keys.([]interface{}) {
 			tk := string(k.([]byte))

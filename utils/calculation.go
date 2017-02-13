@@ -40,7 +40,7 @@ type ComplexRdsKey struct {
 }
 
 func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
-	strs := []ComplexRdsKey{}
+	strs := []ComplexRdsKey{ComplexRdsKey{}}
 	data := map[string]interface{}{}
 	for k, v := range d {
 		data["@"+k] = v
@@ -73,7 +73,8 @@ func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
 		}
 	}
 	for i, str := range strs {
-		strs[i].Key = strings.Join(str.keys[1:], "_")
+		str.Key = strings.Join(str.keys, "_")
+		strs[i] = str
 	}
 	return strs
 }
