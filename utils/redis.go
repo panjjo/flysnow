@@ -35,17 +35,23 @@ func (r *RedisConn) Close() {
 	r.Con.Close()
 }
 
+type RedisConfig struct {
+	Server             string
+	MaxIdle, MaxActive int
+	DB                 int
+}
+
 /*
 生成redis连接池
 */
-func newRedisPool(server string, maxidle, maxactive int) *redis.Pool {
+func newRedisPool(conf *RedisConfig) *redis.Pool {
 	return &redis.Pool{
-		MaxIdle:     maxidle,
-		MaxActive:   maxactive,
+		MaxIdle:     conf.MaxIdle,
+		MaxActive:   conf.MaxActive,
 		IdleTimeout: 240 * time.Second,
 		Wait:        true,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
+			c, err := redis.Dial("tcp", conf.Server, redis.DialDatabase(conf.DB))
 			if err != nil {
 				return nil, err
 			}
@@ -64,9 +70,12 @@ func newRedisPool(server string, maxidle, maxactive int) *redis.Pool {
 func InitRedis(tag string) {
 	if redispool[tag] == nil {
 		FSConfig.SetMod(tag)
-		rdshost := FSConfig.StringDefault("redis.Host", "192.168.1.9:6379")
-		rdsmaxpool := FSConfig.IntDefault("redis.MaxPoolConn", 100)
-		rdsmaxactive := FSConfig.IntDefault("redis.MaxActive", 100)
-		redispool[tag] = newRedisPool(rdshost, rdsmaxpool, rdsmaxactive)
+		config := RedisConfig{
+			Server:    FSConfig.StringDefault("redis.Host", "192.168.1.9:6379"),
+			MaxActive: FSConfig.IntDefault("redis.MaxActive", 100),
+			MaxIdle:   FSConfig.IntDefault("redis.MaxPoolConn", 100),
+			DB:        FSConfig.IntDefault("redis.DB", 0),
+		}
+		redispool[tag] = newRedisPool(&config)
 	}
 }

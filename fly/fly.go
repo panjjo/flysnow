@@ -75,7 +75,9 @@ func RespPacket(code int, body interface{}) []byte {
 	result := []byte(endId)
 	result = append(result, utils.IntToBytes(code)...)
 	if code != 0 {
-		body = models.ErrMsgMap[code]
+		if v, ok := models.ErrMsgMap[code]; ok {
+			body = v
+		}
 	}
 	b := utils.JsonEncode(body, false)
 	result = append(result, utils.IntToBytes(len(b))...)
@@ -227,6 +229,14 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 				//check heardbeat
 				if op == 0 {
 					ConnRespChannel <- &connResp{conn.connid, 0, nil}
+				} else if op == 3 {
+					go v["clear"].reader(&BodyData{
+						Op:       op,
+						Body:     body,
+						Connid:   conn.connid,
+						Tag:      string(tagdata),
+						NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
+					})
 				} else {
 					if cal, ok := v[string(tagdata)]; ok {
 						//check heardbeat

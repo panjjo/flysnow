@@ -13,3 +13,17 @@ func (s *Statistics) reader(d *BodyData) {
 	}
 	ConnRespChannel <- &connResp{d.Connid, 0, result}
 }
+
+type Clear struct {
+}
+
+func (s *Clear) reader(d *BodyData) {
+	err, result := snow.Clear(d.Body)
+	if err != nil {
+		log.ERROR.Printf("Clear error err:%s", err)
+	}
+	ConnRespChannel <- &connResp{d.Connid, result, err}
+}
+func ClearRedisKey(tag string) {
+	snow.ClearRedisKey(tag)
+}

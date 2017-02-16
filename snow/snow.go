@@ -5,7 +5,9 @@ import (
 	"flysnow/utils"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"labix.org/v2/mgo/bson"
 )
@@ -37,7 +39,7 @@ type SnowData struct {
 	Index map[string]interface{}
 	Term  string
 	Tag   string
-	Query bson.M
+	Query bson.M `bson:"-"`
 }
 
 func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
@@ -49,15 +51,17 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 			bl = true
 			snowlock.l.Lock()
 			snowsys.RedisConn.Dos("RENAME", snowsys.Key, snowsys.Key+"_rotate")
-			end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
-			start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
-			snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-			snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
+			if !snowsys.SnowKey.KeyCheck {
+				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
+				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
+				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
+				snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
+			}
 			snowlock.l.Unlock()
 		} else {
 			return
 		}
-	} else {
+	} else if !snowsys.SnowKey.KeyCheck {
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
@@ -79,12 +83,12 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 	if b == nil {
 		return
 	}
-	tb := b.([]interface{})
-	if len(tb) == 0 {
+	tb1 := b.([]interface{})
+	if len(tb1) == 0 {
 		return
 	}
 	defer snowsys.RedisConn.Dos("DEL", snowsys.Key+"_rotate")
-	go func() {
+	go func(tb []interface{}) {
 		dm := map[string]interface{}{}
 		for i := 0; i < len(tb); i = i + 2 {
 			dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
@@ -115,7 +119,15 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 						}
 					}
 				}
-				mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
+				data.Data = td
+				if data.Key == "" {
+					data.Index = snowsys.Index
+					data.Key = key
+					data.Tag = tag
+					data.Term = term
+				}
+				//cinfo, err := mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
+				mc.Upsert(bson.M{"s_key": key}, data)
 				if len(retatedata) == 0 {
 					break
 				}
@@ -192,5 +204,54 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				"e_time": now, "tag": tag, "term": term, "index": snowsys.Index}})
 
 		}
-	}()
+	}(tb1)
+}
+
+//rds key rotate
+func ClearRedisKey(tag string) {
+	for {
+		now := utils.GetNowSec()
+		if utils.Sec2Str("15", now) == "04" {
+			utils.Log.INFO.Println("Do rds'key rollback", utils.Sec2Str("2006-01-02 15:04", now))
+			rdsconn := utils.NewRedisConn(tag)
+			defer rdsconn.Close()
+
+			keys, err := rdsconn.Dos("KEYS", "fs_*")
+			if err != nil {
+				continue
+			}
+			var index map[string]interface{}
+			var ks, tl []string
+			var tk string
+			for _, k := range keys.([]interface{}) {
+				tk = string(k.([]byte))
+				tl = strings.Split(tk, "_")
+				tag = tl[1]
+				ks = []string{}
+				index = map[string]interface{}{}
+				for i := 2; i < len(tl[1:]); i = i + 2 {
+					ks = append(ks, tl[i])
+					index[tl[i][1:]] = tl[i+1]
+				}
+				for tag, terms := range models.TermConfigMap {
+					for term, config := range terms {
+						if fmt.Sprintf("%v", config.Key) == fmt.Sprintf("%v", ks) {
+							newSnow := &SnowSys{
+								&utils.SnowKey{
+									tk, index,
+									true,
+								},
+								nil,
+								tag,
+								term,
+								now,
+							}
+							Rotate(newSnow, config.Snow)
+						}
+					}
+				}
+			}
+		}
+		time.Sleep(1 * time.Hour)
+	}
 }

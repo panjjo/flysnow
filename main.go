@@ -14,4 +14,5 @@ func main() {
 		log.Println(http.ListenAndServe("localhost:7777", nil))
 	}()
 	fly.StartServer()
+
 }

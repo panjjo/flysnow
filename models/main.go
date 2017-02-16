@@ -40,6 +40,7 @@ const (
 	ErrMethodNotFount = 1002 //Tag不存在
 	ErrTimeOut        = 1003 //堵塞
 	ErrData           = 2001 //数据格式错误
+	ErrClear          = 2002 //清理失败
 )
 
 var ErrMsgMap = map[int]string{

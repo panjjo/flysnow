@@ -6,8 +6,9 @@ import (
 )
 
 type SnowKey struct {
-	Key   string
-	Index map[string]interface{}
+	Key      string
+	Index    map[string]interface{}
+	KeyCheck bool
 }
 
 func GetKey(obj interface{}, keys []string) *SnowKey {
@@ -110,31 +111,35 @@ func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool
 						return false
 					}
 				case map[string]interface{}:
-					for kk, vv := range n {
+					for kk, tv := range n {
+						vv := int64(tv.(float64))
 						switch kk {
 						case "$gt": //>
-							if vv.(float64) <= data[kk].(float64) {
+							if vv >= value.(int64) {
 								return false
 							}
 						case "$gte":
-							if vv.(float64) < data[kk].(float64) {
+							if vv > value.(int64) {
 								return false
 							}
 						case "$lt":
-							if vv.(float64) >= data[kk].(float64) {
+							if vv <= value.(int64) {
 								return false
 							}
 						case "$lte":
-							if vv.(float64) > data[kk].(float64) {
+							if vv < value.(int64) {
 								return false
 							}
 						case "$ne":
-							if vv.(float64) == data[kk].(float64) {
+							if vv == value.(int64) {
 								return false
 							}
 						}
 					}
+				default:
+					Log.ERROR.Println(n, f)
 				}
+				return true
 			}
 		}
 	}

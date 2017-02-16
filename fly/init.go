@@ -22,9 +22,10 @@ func Init() {
 	ConnMaps = ConnMapStruct{m: map[string]*ConnStruct{}}
 
 	handleFuncs = map[int]map[string]ListenChanFunc{
-		0: map[string]ListenChanFunc{}, //Ping
-		1: map[string]ListenChanFunc{}, //统计
-		2: map[string]ListenChanFunc{}, //计算
+		0: map[string]ListenChanFunc{},                  //Ping
+		1: map[string]ListenChanFunc{},                  //统计
+		2: map[string]ListenChanFunc{},                  //计算
+		3: map[string]ListenChanFunc{"clear": &Clear{}}, //Clear
 		// 3: Calculation,
 		// "upheader",   //3:更新统计项
 		// "gethearder", //4:查询统计项
@@ -40,6 +41,8 @@ func Init() {
 		utils.InitRedis(tag)
 		utils.MgoInit(tag)
 	}
+	//每天处理一次 rds key
+	go ClearRedisKey(models.TagList[0])
 
 	ConnRespChannel = make(chan *connResp, 100)
 }
