@@ -56,7 +56,7 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
-		t := d["e_time"].(int64)
+		t := d["e_time"].(int64) - 1
 		e_time := utils.DurationMap[s.SpanD](t, s.Span)
 		s_time := utils.DurationMap[s.SpanD+"l"](e_time, s.Span)
 		if d["e_time"].(int64) <= e_time && s_time <= d["s_time"].(int64) {

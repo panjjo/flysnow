@@ -65,7 +65,6 @@ func Clear(body []byte) (error, int) {
 		keys, _ := rdsconn.Dos("KEYS", clear.RdsKey)
 		for _, k := range keys.([]interface{}) {
 			key = string(k.([]byte))
-			fmt.Println("delete redis key", key)
 			rdsconn.Dos("DEL", key)
 		}
 		//clear mongo

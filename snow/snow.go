@@ -55,7 +55,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-				snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
+				//snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
 			}
 			snowlock.l.Unlock()
 		} else {
@@ -65,7 +65,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-		snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
+		//snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
 	}
 	return
 

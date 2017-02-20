@@ -27,9 +27,9 @@ func (f *{{name}})Do(key string,t int64)bool{
     return !update
     }
   if f.whence==0{
-    return res.T<t-utils.DurationMap[f.duration+"l"](t,f.offset)
+    return res.T<utils.DurationMap[f.duration+"l"](utils.DurationMap[f.duration](t,f.offset),f.offset)
   }else{
-    return res.T<t-utils.DurationMap[f.duration](t,f.offset)
+    return res.T<utils.DurationMap[f.duration+"l"](t,f.offset)
   }
 }
     `,
