@@ -161,7 +161,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 							for tk, tv := range v {
 								if tk != "s_time" && tk != "e_time" {
 									if v2, ok := v1[tk]; ok {
-										v1[tk] = v2.(int64) + tv.(int64)
+										v1[tk] = v2.(float64) + tv.(float64)
 									} else {
 										v1[tk] = tv
 									}
@@ -194,7 +194,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 						continue
 					}
 					if v2, ok := tmp[k1]; ok {
-						tmp[k1] = v2.(int64) + v1.(int64)
+						tmp[k1] = v2.(float64) + v1.(float64)
 					} else {
 						tmp[k1] = v1
 					}

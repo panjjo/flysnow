@@ -82,6 +82,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		req.IsSpan = true
 	}
 	mgos := utils.MgoSessionDupl(tag)
+	defer mgos.Close()
 	mc := mgos.DB(models.MongoDT + tag).C(req.Term)
 	query := bson.M{}
 	if len(req.Index) > 0 {
@@ -116,7 +117,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			if err == nil && len(tb) != 0 {
 				dm := map[string]interface{}{}
 				for i := 0; i < len(tb); i = i + 2 {
-					dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
+					dm[string(tb[i].([]uint8))], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
 				}
 				if dm["s_time"].(int64) >= req.STime && (dm["e_time"].(int64) <= req.ETime || req.ETime == 0) {
 					req.GroupKeyRedis(tk, dm)
@@ -153,7 +154,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			for lk, lv := range l {
 				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
 					if llv, ok := v[lk]; ok {
-						v[lk] = llv.(int64) + lv.(int64)
+						v[lk] = llv.(float64) + lv.(float64)
 					} else {
 						v[lk] = lv
 					}
@@ -172,7 +173,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			for lk, lv := range v {
 				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
 					if llv, ok := total[lk]; ok {
-						total[lk] = llv.(int64) + lv.(int64)
+						total[lk] = llv.(float64) + lv.(float64)
 					} else {
 						total[lk] = lv
 					}

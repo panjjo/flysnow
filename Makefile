@@ -1,7 +1,4 @@
-NY: all
-
-all: | $(log)
+all:
 	./parser
 	go build main.go
-	./main
 
