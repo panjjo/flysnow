@@ -56,10 +56,10 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
-		t := d["e_time"].(int64) - 1
+		t := int64(d["e_time"].(float64)) - 1
 		e_time := utils.DurationMap[s.SpanD](t, s.Span)
 		s_time := utils.DurationMap[s.SpanD+"l"](e_time, s.Span)
-		if d["e_time"].(int64) <= e_time && s_time <= d["s_time"].(int64) {
+		if int64(d["e_time"].(float64)) <= e_time && s_time <= int64(d["s_time"].(float64)) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
 		} else {
@@ -119,7 +119,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				for i := 0; i < len(tb); i = i + 2 {
 					dm[string(tb[i].([]uint8))], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
 				}
-				if dm["s_time"].(int64) >= req.STime && (dm["e_time"].(int64) <= req.ETime || req.ETime == 0) {
+				if int64(dm["s_time"].(float64)) >= req.STime && (int64(dm["e_time"].(float64)) <= req.ETime || req.ETime == 0) {
 					req.GroupKeyRedis(tk, dm)
 					tl = append(tl, dm)
 				}

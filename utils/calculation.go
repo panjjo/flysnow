@@ -112,26 +112,26 @@ func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool
 					}
 				case map[string]interface{}:
 					for kk, tv := range n {
-						vv := int64(tv.(float64))
+						vv := tv.(float64)
 						switch kk {
 						case "$gt": //>
-							if vv >= value.(int64) {
+							if vv >= value.(float64) {
 								return false
 							}
 						case "$gte":
-							if vv > value.(int64) {
+							if vv > value.(float64) {
 								return false
 							}
 						case "$lt":
-							if vv <= value.(int64) {
+							if vv <= value.(float64) {
 								return false
 							}
 						case "$lte":
-							if vv < value.(int64) {
+							if vv < value.(float64) {
 								return false
 							}
 						case "$ne":
-							if vv == value.(int64) {
+							if vv == value.(float64) {
 								return false
 							}
 						}
