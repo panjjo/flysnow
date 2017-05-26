@@ -56,10 +56,10 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
-		t := int64(d["e_time"].(float64)) - 1
+		t := utils.TInt64(d["e_time"]) - 1
 		e_time := utils.DurationMap[s.SpanD](t, s.Span)
 		s_time := utils.DurationMap[s.SpanD+"l"](e_time, s.Span)
-		if int64(d["e_time"].(float64)) <= e_time && s_time <= int64(d["s_time"].(float64)) {
+		if utils.TInt64(d["e_time"]) <= e_time && s_time <= utils.TInt64(d["s_time"]) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
 		} else {
@@ -119,7 +119,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				for i := 0; i < len(tb); i = i + 2 {
 					dm[string(tb[i].([]uint8))], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
 				}
-				if int64(dm["s_time"].(float64)) >= req.STime && (int64(dm["e_time"].(float64)) <= req.ETime || req.ETime == 0) {
+				if utils.TInt64(dm["s_time"]) >= req.STime && (utils.TInt64(dm["e_time"]) <= req.ETime || req.ETime == 0) {
 					req.GroupKeyRedis(tk, dm)
 					tl = append(tl, dm)
 				}
@@ -134,7 +134,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		for _, data := range datas {
 			groupkey := req.GroupKeyMgo(data.Index)
 			for _, v := range data.Data {
-				if v["s_time"].(int64) >= req.STime && (v["e_time"].(int64) <= req.ETime || req.ETime == 0) {
+				if utils.TInt64(v["s_time"]) >= req.STime && (utils.TInt64(v["e_time"]) <= req.ETime || req.ETime == 0) {
 					v["@groupkey"] = groupkey
 					v["@index"] = data.Index
 					tl = append(tl, v)
@@ -154,7 +154,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			for lk, lv := range l {
 				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
 					if llv, ok := v[lk]; ok {
-						v[lk] = llv.(float64) + lv.(float64)
+						v[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
 					} else {
 						v[lk] = lv
 					}
@@ -173,7 +173,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			for lk, lv := range v {
 				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
 					if llv, ok := total[lk]; ok {
-						total[lk] = llv.(float64) + lv.(float64)
+						total[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
 					} else {
 						total[lk] = lv
 					}

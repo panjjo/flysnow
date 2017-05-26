@@ -271,3 +271,41 @@ func Sec2Str(layout string, sec int64) string {
 	nt := t.Format(layout)
 	return nt
 }
+
+/**
+  interface 2 float64
+*/
+func TFloat64(i interface{}) (f float64) {
+	switch n := i.(type) {
+	case int:
+		f = float64(n)
+	case int64:
+		f = float64(n)
+	case float32:
+		f = float64(n)
+	case float64:
+		f = n
+	default:
+		f = 0.0
+	}
+	return f
+}
+
+/**
+  interface 2 int64
+*/
+func TInt64(i interface{}) (f int64) {
+	switch n := i.(type) {
+	case int:
+		f = int64(n)
+	case int64:
+		f = n
+	case float32:
+		f = int64(n)
+	case float64:
+		f = int64(n)
+	default:
+		f = 0
+	}
+	return f
+}

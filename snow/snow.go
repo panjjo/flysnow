@@ -55,7 +55,6 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-				//snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
 			}
 			snowlock.l.Unlock()
 		} else {
@@ -65,7 +64,6 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-		//snowsys.RedisConn.Dos("EXPIRE", snowsys.Key, 24*60*60*90)
 	}
 	return
 
@@ -112,7 +110,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				lasttime = data.STime
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
-						if d.(int64) >= data.STime {
+						if utils.TInt64(d) >= data.STime {
 							td = data.Data[k:]
 							retatedata = data.Data[:k]
 							break
@@ -142,7 +140,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				retatedata = data.Data
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
-						if d.(int64) >= data.STime {
+						if utils.TInt64(d) >= data.STime {
 							td = data.Data[k:]
 							retatedata = data.Data[:k]
 							break
@@ -153,15 +151,15 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				for _, v := range ttt {
 					o := false
 					tmpsnow := snows[sk]
-					v["e_time"] = utils.DurationMap[tmpsnow.InterValDuration](v["e_time"].(int64), tmpsnow.Interval)
-					v["s_time"] = utils.DurationMap[tmpsnow.InterValDuration+"l"](v["e_time"].(int64), tmpsnow.Interval)
-					lasttime = v["e_time"].(int64)
+					v["e_time"] = utils.DurationMap[tmpsnow.InterValDuration](utils.TInt64(v["e_time"]), tmpsnow.Interval)
+					v["s_time"] = utils.DurationMap[tmpsnow.InterValDuration+"l"](utils.TInt64(v["e_time"]), tmpsnow.Interval)
+					lasttime = utils.TInt64(v["e_time"])
 					for k1, v1 := range td {
 						if v["s_time"].(int64) >= v1["s_time"].(int64) && v["e_time"].(int64) <= v1["e_time"].(int64) {
 							for tk, tv := range v {
 								if tk != "s_time" && tk != "e_time" {
 									if v2, ok := v1[tk]; ok {
-										v1[tk] = v2.(float64) + tv.(float64)
+										v1[tk] = utils.TFloat64(v2) + utils.TFloat64(tv)
 									} else {
 										v1[tk] = tv
 									}
@@ -194,7 +192,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 						continue
 					}
 					if v2, ok := tmp[k1]; ok {
-						tmp[k1] = v2.(float64) + v1.(float64)
+						tmp[k1] = utils.TFloat64(v2) + utils.TFloat64(v1)
 					} else {
 						tmp[k1] = v1
 					}
