@@ -103,35 +103,35 @@ func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool
 			} else {
 				switch n := f.(type) {
 				case float64:
-					if n != float64(value.(int64)) {
+					if n != TFloat64(value) {
 						return false
 					}
 				case int64:
-					if n != value.(int64) {
+					if n != TInt64(value) {
 						return false
 					}
 				case map[string]interface{}:
 					for kk, tv := range n {
-						vv := tv.(float64)
+						vv := TFloat64(tv)
 						switch kk {
 						case "$gt": //>
-							if vv >= value.(float64) {
+							if vv >= TFloat64(value) {
 								return false
 							}
 						case "$gte":
-							if vv > value.(float64) {
+							if vv > TFloat64(value) {
 								return false
 							}
 						case "$lt":
-							if vv <= value.(float64) {
+							if vv <= TFloat64(value) {
 								return false
 							}
 						case "$lte":
-							if vv < value.(float64) {
+							if vv < TFloat64(value) {
 								return false
 							}
 						case "$ne":
-							if vv == value.(float64) {
+							if vv == TFloat64(value) {
 								return false
 							}
 						}

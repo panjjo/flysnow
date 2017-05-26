@@ -58,17 +58,18 @@ func Clear(body []byte) (error, int) {
 
 	for _, clear := range list {
 		session := utils.MgoSessionDupl(clear.Tag)
-		defer session.Close()
 		//clear redis
 		rdsconn := utils.NewRedisConn(clear.Tag)
-		defer rdsconn.Close()
 		keys, _ := rdsconn.Dos("KEYS", clear.RdsKey)
 		for _, k := range keys.([]interface{}) {
 			key = string(k.([]byte))
 			rdsconn.Dos("DEL", key)
 		}
+		rdsconn.Close()
 		//clear mongo
 		session.DB(models.MongoDT + clear.Tag).C(clear.Term).RemoveAll(clear.MongoQuery)
+		session.Close()
+
 	}
 	return nil, 0
 }

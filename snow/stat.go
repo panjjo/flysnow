@@ -220,14 +220,8 @@ func SortMapList(source []interface{}, name interface{}, asc bool) []interface{}
 				return false
 			} else {
 				switch va.(type) {
-				case int:
-					return va.(int) < vb.(int)
-				case int64:
-					return va.(int64) < vb.(int64)
-				case float32:
-					return va.(float32) < vb.(float32)
-				case float64:
-					return va.(float64) < vb.(float64)
+				case int, int64, float32, float64:
+					return utils.TFloat64(va) < utils.TFloat64(vb)
 				case string:
 					return va.(string) < vb.(string)
 				default:

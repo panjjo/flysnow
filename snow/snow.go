@@ -93,8 +93,9 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 		}
 		now := snowsys.Now
 		session := utils.MgoSessionDupl(tag)
-		mc := session.DB(models.MongoDT + tag).C(term)
 		defer session.Close()
+		
+		mc := session.DB(models.MongoDT + tag).C(term)
 		var data SnowData
 		var lasttime int64
 		retatedata := []map[string]interface{}{}
