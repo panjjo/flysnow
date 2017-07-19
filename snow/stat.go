@@ -30,6 +30,9 @@ func (s *StatReq) GroupKeyRedis(key string, dm map[string]interface{}) {
 	tm := map[string]string{}
 	tl := strings.Split(key, "_")
 	for i, v := range tl {
+		if v == "" {
+			continue
+		}
 		if v[:1] == "@" {
 			tm[v[1:]] = tl[i+1]
 		}
