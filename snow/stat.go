@@ -145,7 +145,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			}
 		}
 	}
-	//redis end
+	//mongo end
 	//group and span
 	groupdata := map[string]map[string]interface{}{}
 	for _, l := range tl {

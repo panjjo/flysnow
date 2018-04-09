@@ -5,10 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -25,18 +23,6 @@ var DurationMap = map[string]func(t, num int64) int64{
 	"yl": durationYL,
 }
 
-func durationS(t, num int64) int64 {
-	return t - t%num + num
-}
-func durationH(t, num int64) int64 {
-	num = num * 60 * 60
-	return t - t%num + num
-}
-func durationD(t, num int64) int64 {
-	num = num * 60 * 60 * 24
-	return t - (t+8*60*60)%num + num
-}
-
 var weekdaymap = map[string]int64{
 	"Monday":    7,
 	"Tuesday":   6,
@@ -47,26 +33,33 @@ var weekdaymap = map[string]int64{
 	"Sunday":    1,
 }
 
+func durationS(t, num int64) int64 {
+	return t - t%num + num
+}
+func durationH(t, num int64) int64 {
+	num = num * 60 * 60
+	return t - t%num + num
+}
+func durationD(t, num int64) int64 {
+	sm, _ := time.ParseInLocation("20060102", Sec2Str("20060102", t), time.Local)
+	new := sm.AddDate(0, 0, int(num))
+	return new.Unix()
+}
+
 func durationW(t, num int64) int64 {
 	weekday := time.Unix(t, 0).Weekday().String()
 	long := weekdaymap[weekday] + 24*60*60 + (num-1)*24*7*60*60
 	return t - (t+8*60*60)%24*60*60 + long
 }
 func durationM(t, num int64) int64 {
-	sm := Sec2Str("200601", t)
-	year, _ := strconv.ParseInt(sm[:4], 10, 64)
-	month := sm[4:]
-	start, _ := strconv.ParseInt(month, 10, 64)
-	end := start + num
-	year += end / 12
-	end = end % 12
-	return Str2Sec("200601", fmt.Sprintf("%4d%02d", year, end))
+	sm, _ := time.ParseInLocation("200601", Sec2Str("200601", t), time.Local)
+	new := sm.AddDate(0, int(num), 0)
+	return new.Unix()
 }
 func durationY(t, num int64) int64 {
-	sm := Sec2Str("2006", t)
-	year, _ := strconv.ParseInt(sm, 10, 64)
-	year += num
-	return Str2Sec("2006", fmt.Sprintf("%4d", year))
+	sm, _ := time.ParseInLocation("2006", Sec2Str("2006", t), time.Local)
+	new := sm.AddDate(int(num), 0, 0)
+	return new.Unix()
 }
 func durationSL(e, num int64) int64 {
 	return e - num
@@ -81,26 +74,14 @@ func durationWL(e, num int64) int64 {
 	return e - num*7*60*60*24
 }
 func durationML(e, num int64) int64 {
-	sm := Sec2Str("20060102 15:04:05", e)
-	year, _ := strconv.ParseInt(sm[:4], 10, 64)
-	month := sm[4:6]
-	other := sm[6:]
-	start, _ := strconv.ParseInt(month, 10, 64)
-	end := start - num
-	year += end / 12
-	end = end % 12
-	if end <= 0 {
-		year += -1
-		end += 12
-	}
-	return Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%02d%s", year, end, other))
+	sm := time.Unix(e, 0)
+	new := sm.AddDate(0, int(-num), 0)
+	return new.Unix()
 }
 func durationYL(e, num int64) int64 {
-	sm := Sec2Str("20060102 15:04:05", e)
-	year, _ := strconv.ParseInt(sm[:4], 10, 64)
-	other := sm[4:]
-	year = year - num
-	return Str2Sec("20060102 15:04:05", fmt.Sprintf("%4d%s", year, other))
+	sm := time.Unix(e, 0)
+	new := sm.AddDate(int(-num), 0, 0)
+	return new.Unix()
 }
 
 type Timer struct {
