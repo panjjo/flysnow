@@ -1,4 +1,9 @@
 # flysnow
+## 运行
+配置好配置文件和统计项
+go run parser.go
+go run main.go
+
 ## 配置文件
 
   默认使用sys配置组
