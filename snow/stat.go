@@ -47,6 +47,7 @@ func (s *StatReq) GroupKeyRedis(key string, dm map[string]interface{}) {
 	return
 }
 func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
+	//group 只能是index中的key
 	if s.IsGroup {
 		for _, k := range s.Group {
 			if v, ok := index[k]; ok {
@@ -57,6 +58,7 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 	return
 }
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
+	//计算每条数据的分组key
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
 		t := utils.TInt64(d["e_time"]) - 1
@@ -66,6 +68,7 @@ func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
 		} else {
+			//时间条件不满足的，跳过
 			skip = true
 		}
 	}
@@ -102,7 +105,8 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	tl := []map[string]interface{}{}
 
 	var keys interface{}
-	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, models.TermConfigMap[tag][req.Term].Key) {
+	termConfig := models.TermConfigMap[tag][req.Term]
+	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, termConfig.Key) {
 		if tmpkey.Re {
 			rdsk := models.RedisKT + "_" + tag + "_" + tmpkey.Key
 			//get from redis
@@ -151,19 +155,25 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	for _, l := range tl {
 		skip, gsk := req.GSKey(l)
 		if skip {
+			//时间不满足，跳过
 			continue
 		}
 		if v, ok := groupdata[gsk]; ok {
-			for lk, lv := range l {
-				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
+			//相同分组的累加到一起
+			rotate(l, v, termConfig.SpKey)
+			/*for lk, lv := range l {
+				switch lk {
+				case "", "s_time", "e_time", "@index", "@groupkey":
+				default:
 					if llv, ok := v[lk]; ok {
 						v[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
 					} else {
 						v[lk] = lv
 					}
 				}
-			}
+			}*/
 		} else {
+			//新的一组
 			groupdata[gsk] = l
 		}
 	}
@@ -171,21 +181,28 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
 	for _, v := range groupdata {
+		//查询条件数据过滤
 		if utils.DataFilter(v, req.DataQuery) {
-			sortdata = append(sortdata, v)
-			for lk, lv := range v {
-				if len(lk) != 0 && lk[:1] != "@" && lk[1:] != "_time" {
+			//计算总数
+			rotate(v, total, termConfig.SpKey)
+			//处理单项特殊key并加入排序集合
+			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
+			/*for lk, lv := range v {
+				switch lk {
+				case "", "s_time", "e_time", "@index", "@groupkey":
+					total[lk] = lv
+				default:
 					if llv, ok := total[lk]; ok {
 						total[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
 					} else {
 						total[lk] = lv
 					}
-				} else {
-					total[lk] = lv
 				}
-			}
+			}*/
 		}
 	}
+	//spkey,处理合计的特殊key
+	total = spkeystat(total, termConfig.SpKey)
 	//sort
 	if len(req.Sort) == 2 {
 		sortdata = SortMapList(sortdata, req.Sort[0], req.Sort[1].(bool))
@@ -254,4 +271,15 @@ func (s SortMapLister) Swap(i, j int) {
 }
 func (s SortMapLister) Less(i, j int) bool {
 	return s.FrontFunc(s.List[i], s.List[j])
+}
+
+func spkeystat(data map[string]interface{}, spkey map[string]string) map[string]interface{} {
+	for tk, _ := range data {
+		if tk != "s_time" && tk != "e_time" && tk[:1] != "@" {
+			if tpe, ok := spkey[tk]; ok {
+				utils.StatSpKeyFuncs(tpe, tk, data)
+			}
+		}
+	}
+	return data
 }

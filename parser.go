@@ -11,41 +11,58 @@ import (
 )
 
 var S_Expmap = map[string]sExpStruct{
-	"&&": sExpStruct{-1, "bool", "bool", " && "},
-	"==": sExpStruct{2, "bool", "eq", " == "},
-	"||": sExpStruct{-1, "bool", "bool", " || "},
-	"!=": sExpStruct{2, "bool", "eq", " != "},
-	"+":  sExpStruct{-1, "interface", "eq", " + "},
-	"-":  sExpStruct{-1, "interface", "eq", " - "},
+	"&&": sExpStruct{-1, "bool", []string{"eq", "bool"}, " && "},
+	"==": sExpStruct{2, "bool", []string{"eq", "interface"}, " == "},
+	"||": sExpStruct{-1, "bool", []string{"eq", "bool"}, " || "},
+	"!=": sExpStruct{2, "bool", []string{"eq", "interface"}, " != "},
+	"+":  sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},
+	/*"last": sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},
+	"avg":  sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},*/
+	/*"-":  sExpStruct{-1, "float64", "eq", " - "},*/
 }
 
 type sExpStruct struct {
-	paramnum    int
-	return_type string
-	child_type  string
-	split       string
+	paramnum    int      //参数个数
+	return_type string   // 返回类型
+	child_type  []string //请求参数类型 eq 表示类型一致即可
+	split       string   // 接串连接符
 }
 
 var suffix = ".json"
 var PWD, DataPath, TmpPath string
-var ParserMap map[string]models.Json
-var baseStrMap map[string]string
-var datastruct dataStruct
+var ParserMap map[string]models.Json // 存放统计项配置文件数据
+var baseStrMap map[string]string     // tmp/base.go 文件代码串
+var datastruct dataStruct            //单配置文件的解析数据
 var termstruct termStruct
 var termConfigMap map[string]map[string]models.TermConfig
 
 type dataStruct struct {
-	name       string
-	request    map[string]interface{}
-	requeststr string
-	term       []termStruct
-	funcsmap   map[string]models.FSFuncStruct
-	funcstr    string
-	data       models.Json
+	name       string                         //名称
+	termname   string                         //当前解析的term名称
+	request    map[string]interface{}         //请求参数
+	requeststr string                         //请求参数组装的go代码
+	term       []termStruct                   //数据源下面的统计项列表
+	funcsmap   map[string]models.FSFuncStruct //系统函数的列表
+	funcstr    string                         //系统函数组装的go代码
+	data       models.Json                    //统计项源数据
 }
 type termStruct struct {
 	name string
 	exec string
+}
+
+func formatErr(arges ...interface{}) {
+	arges = append(arges, []interface{}{datastruct.name, datastruct.termname}...)
+	fmt.Println(arges...)
+	os.Exit(1)
+}
+func formatInfo(arges ...interface{}) {
+	arges = append(arges, []interface{}{datastruct.name, datastruct.termname}...)
+	fmt.Println(arges...)
+}
+func formatWarn(arges ...interface{}) {
+	arges = append(arges, []interface{}{datastruct.name, datastruct.termname}...)
+	fmt.Println(arges...)
 }
 
 func main() {
@@ -61,33 +78,45 @@ func main() {
 	DataPath = PWD + "/data"
 	TmpPath = PWD + "/tmp"
 	suffix = strings.ToUpper(suffix)
+	//检查文件目录是否存在并合法  data/  tmp/
 	checkPath()
+	// 复制生成 tmp/main.go
 	copyMainFile()
+	// 加载统计项配置文件
 	parserJsonFile(DataPath)
+	//解析配置文件
 	parserJson()
-	fmt.Println("parser finish")
+	formatInfo("parser finish")
 }
 
 func parserJson() {
+	//循环所有配置文件
 	for name, v := range ParserMap {
 		datastruct = dataStruct{funcsmap: map[string]models.FSFuncStruct{}, term: []termStruct{}, data: v}
 		datastruct.name = name
+		//解析请求数据
 		parserDataRequest(v.Reqdata)
+		//解析过滤器
 		parserFuncFilter(v.Filter)
+		// tmp/base.go 下的 TermListMap 组装代码
 		baseStrMap["termlistmap"] += "\"" + name + "\":&DATATERM{\nData:New" + strings.ToUpper(name) + ",\nTerms:[]func(t interface{}){\n"
+		//循环各统计项
 		for _, term := range v.Term {
+			setBaseTermMap(name, term)
+			datastruct.termname = term.Name
+			//检查term 的key 所需要的参数是否存在
 			checkTermKey(term)
 			termstruct = termStruct{}
 			termstruct.name = term.Name
+			// 解析exec 操作集合
 			termstruct.exec = complexExec(term)
 			baseStrMap["termlistmap"] += "termmap[\"" + name + term.Name + "\"].Exec,"
-			setBaseTermMap(name, term)
 			datastruct.term = append(datastruct.term, termstruct)
 		}
 		baseStrMap["termlistmap"] += "},},"
 		writeBaseFile()
 		writeTermFile()
-		fmt.Println("parse", name, "succ")
+		formatInfo("parse", name, "succ")
 	}
 }
 func writeTermFile() {
@@ -96,7 +125,7 @@ func writeTermFile() {
 	tm, _ := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	defer tm.Close()
 	if mm, err := ioutil.ReadFile(PWD + "/models/tmp.data.tmpl"); err != nil {
-		fmt.Println("parser tmp.data.tmpl fail:", err)
+		formatErr("parser tmp.data.tmpl fail:", err)
 	} else {
 		str := string(mm)
 		str = strings.Replace(str, "{{name}}", strings.ToUpper(datastruct.name), -1)
@@ -106,7 +135,7 @@ func writeTermFile() {
 	waitwritestr += datastruct.funcstr
 	for _, term := range datastruct.term {
 		if mm, err := ioutil.ReadFile(PWD + "/models/tmp.term.tmpl"); err != nil {
-			fmt.Println("parser tmp.term.tmpl fail:", err)
+			formatErr("parser tmp.term.tmpl fail:", err)
 		} else {
 			str := string(mm)
 			str = strings.Replace(str, "{{termname}}", strings.ToUpper(datastruct.name+term.name), -1)
@@ -119,11 +148,11 @@ func writeTermFile() {
 	tm.WriteString(waitwritestr)
 }
 func parserFuncFilter(fs []models.FSFilter) {
+	//解析过滤器
 	funcstruct := models.FSFuncMap["filter"]
 	for _, f := range fs {
 		if _, ok := utils.DurationMap[f.Duration]; !ok {
-			fmt.Println("parer ", datastruct.name, " ", termstruct.name, " funcs err: filter.duration must in [s,d,m,y] get", f.Duration)
-			os.Exit(1)
+			formatErr("parer ", datastruct.name, " ", termstruct.name, " funcs err: filter.duration must in [s,d,m,y] get", f.Duration)
 		}
 		str := funcstruct.FuncBody
 		str = strings.Replace(str, "{{name}}", strings.ToUpper(datastruct.name+f.Name), -1)
@@ -132,6 +161,7 @@ func parserFuncFilter(fs []models.FSFilter) {
     %s=tmp%s.Do
     `, f.OffSet, f.Whence, f.Name, f.Duration, datastruct.name+f.Name, datastruct.name+f.Name)
 		datastruct.funcsmap[f.Name] = funcstruct
+		//组装方法代码串
 		datastruct.funcstr += str
 	}
 
@@ -141,18 +171,17 @@ func complexExec(term models.Term) (str string) {
 		isif := false
 		tmpstr := ""
 		if len(e.Filter) > 0 {
-			ifstr, res_type := complexTermFilter(e.Filter, "bool")
+			//解析条件
+			ifstr, res_type := complexTerm(e.Filter)
 			if res_type != "bool" {
-				fmt.Println("parer ", datastruct.name, " ", term.Name, " filter err: return must bool but get ", res_type)
-				os.Exit(1)
+				//条件返回结果不是bool类型 报错
+				formatErr("Filter Error: return type must bool but get", res_type, "filter:", e.Filter)
 			}
 			tmpstr = "if " + ifstr + "{\n"
 			isif = true
-		} else if len(e.Filter) == 1 {
-			fmt.Println("parer ", datastruct.name, " ", term.Name, " filter err: Len<=1 ", e.Filter)
-			os.Exit(1)
 		}
 		if len(e.Do) > 0 {
+			//解析do操作
 			for _, d := range e.Do {
 				tmpstr += complexTermDo(d) + "\n"
 			}
@@ -164,302 +193,197 @@ func complexExec(term models.Term) (str string) {
 	}
 	return str
 }
-func complexTermDo(f []interface{}) (str string) {
+func complexTermDo(f []interface{}) string {
+	if len(f) < 2 {
+		formatErr("Complex DoErr:request params num must be greater than 2,get:", len(f), f)
+	}
 	car, ok := f[0].(string)
+	//op 必须为string
 	if !ok {
-		fmt.Println("parer ", datastruct.name, " ", termstruct.name, " do err: not found op ", f[0])
-		os.Exit(1)
+		formatErr("Complex ExecErr: op not found", f)
 	}
 	switch car {
-	case "+=", "-=":
-		return complexDoFuncSum(f)
-	case "rangesum":
-		return complexDoFuncSumList(f)
+	case "+", "avg", "last":
 	default:
-		fmt.Println("parer ", datastruct.name, " ", termstruct.name, " do err: not found op ", f[0])
-		os.Exit(1)
+		formatErr("Complex ExecErr: op not found", f)
 	}
-	return ""
-}
-func complexDoFuncSumList(f []interface{}) (str string) {
-	car, _ := f[0].(string)
-	if len(f)-1 != 1 {
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"need 1 params", " but get", len(f)-1)
-		os.Exit(1)
+	var fkn string //更新键名
+	var tvl string //更新键的值
+	//第一个参数必须为string,为redis操作的key
+	first, ok := f[1].(string)
+	if first == "" {
+		formatErr("Complex ExecErr: op the first params is empoty", f)
 	}
-	if _, ok := f[1].(string); !ok {
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"the second param type must string", " but get", reflect.TypeOf(f[1]).Name())
-		os.Exit(1)
-	}
-	fkn := ""
-	if len(f[1].(string)) > 0 && f[1].(string)[:1] == "@" {
-		fp := f[1].(string)[1:]
-		if drt, ok := datastruct.request[fp]; ok {
-			if drt.(string) != "$rangelist" {
-				fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-					"the second param", f[1], "type", drt, " but want rangelist")
-				os.Exit(1)
-			}
-			fkn = strings.ToUpper(f[1].(string)[1:])
-		} else {
-			fmt.Println("parser ", datastruct.name, termstruct.name, "do err:op", car, " Not Found Key ", fp)
-			os.Exit(1)
-		}
-	} else {
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"the second param type must @string", " but get", f[1])
-		os.Exit(1)
-	}
-	str = models.FSFuncMap["rangesum"].FuncBody
-	str = strings.Replace(str, "{{name}}", fkn, -1)
-	return str
-}
-func complexDoFuncSum(f []interface{}) (str string) {
-	car, _ := f[0].(string)
-	if len(f)-1 != 2 {
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"need 2 params", " but get", len(f)-1)
-		os.Exit(1)
-	}
-	switch f[1].(type) {
-	case int, int64, float64, string:
-	default:
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-			"the second param type must interface{}", " but get", reflect.TypeOf(f[1]).Name())
-		os.Exit(1)
-	}
-	fkn := ""
-	if f[1].(string)[:1] == "@" {
-		fp := f[1].(string)[1:]
-		if drt, ok := datastruct.request[fp]; ok {
-			if drt.(string) == "$rangelist" {
-				fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-					"the second param", f[1], "type", drt, " but want float64")
-				os.Exit(1)
-			}
-			fkn = "d.req." + strings.ToUpper(f[1].(string)[1:])
-		} else {
-			fmt.Println("parser ", datastruct.name, termstruct.name, "do err:op", car, " Not Found Key ", fp)
-			os.Exit(1)
-		}
-	} else {
-		fkn = `"` + f[1].(string) + `"`
-	}
-	tvl := ""
-	switch f[2].(type) {
-	case string:
-		if len(f[2].(string)) > 0 && f[2].(string)[:1] == "@" {
-			fp := f[2].(string)[1:]
-			if drt, ok := datastruct.request[fp]; ok {
-				if drt.(string) == "$rangelist" {
-					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-						"the second param", f[1], "type", drt, " but want float64")
-					os.Exit(1)
-				}
-				tvl = "d.req." + strings.ToUpper(f[2].(string)[1:])
-			} else {
-				fmt.Println("parser ", datastruct.name, termstruct.name, "do err:op", car, " Not Found Key ", fp)
-				os.Exit(1)
-			}
-		} else {
-			fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-				"the second param", f[2], "type string but want float64")
-			os.Exit(1)
-		}
 
-	case int, int64, float64, float32:
-		tvl = fmt.Sprintf("%v", f[2])
-	case []interface{}:
-		tvl1, returntype := complexTermFilter(f[2].([]interface{}), "float64")
-		if returntype != "float64" {
-			fmt.Println(tvl1, returntype, f[2])
-			fmt.Println("parser ", datastruct.name, " ", termstruct.name, " do err: op ", car,
-				"the second param", f[2], "type", returntype, " but want float64")
-			os.Exit(1)
+	if first[:1] == "@" {
+		//传入参数的判断
+		fp := first[1:]
+		if drt, ok := datastruct.request[fp]; ok {
+			switch strings.ToLower(drt.(string)) {
+			//特殊结构
+			case "$listkv":
+				//循环计算,直接替换返回
+				return strings.Replace(models.FSFuncMap["listkv"].FuncBody, "{{name}}", strings.ToUpper(fp), -1)
+			default:
+				//简单取值
+				fkn = "d.req." + strings.ToUpper(fp)
+			}
+		} else {
+			// 没有这个key
+			formatErr("Complex ExecErr: not found key,", fp, f)
 		}
-		tvl = tvl1
-	}
-	if car == "-=" {
-		str += fmt.Sprintf(`commands.Commands=append(commands.Commands,RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,-%s}})`, fkn, tvl)
 	} else {
-		str += fmt.Sprintf(`commands.Commands=append(commands.Commands,RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,%s}})`, fkn, tvl)
+		//普通key
+		fkn = fmt.Sprintf(`"%s"`, first)
 	}
-	return str
+	//spkey 写入termconfig
+	switch car {
+	case "avg", "last":
+		spkey := termConfigMap[datastruct.name][datastruct.termname]
+		spkey.SpKey[first] = car
+		termConfigMap[datastruct.name][datastruct.termname] = spkey
+
+	}
+
+	//从除op外第二个参数开始都可以当做是+的元素处理
+	str, returntype := complexTerm(append([]interface{}{"+"}, f[2:]...))
+	if returntype == "float64" {
+		tvl = str
+	} else {
+	}
+
+	return fmt.Sprintf(`commands.Commands=append(commands.Commands,utils.RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,%s}})`, fkn, tvl)
 }
-func complexTermFilter(f []interface{}, child_type string) (str string, return_type string) {
+
+//解析操作方法 [+...,Key1,Key2...]
+func complexTerm(f []interface{}) (str string, return_type string) {
 	//获取op
-	car := f[0]
-	switch car.(type) {
-	case string:
-		if len(car.(string)) > 0 && car.(string)[:1] == "$" {
-			funcname := car.(string)[1:]
-			if fsf, ok := datastruct.funcsmap[funcname]; ok {
-				if fsf.ReturnType[0] != child_type && child_type != "eq" {
-					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
-						" return ", fsf.ReturnType, " but want ", child_type)
-					os.Exit(1)
-				}
-				if len(f)-1 != len(fsf.Paramstype) {
-					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
-						"need", len(fsf.Paramstype), " but get", len(f)-1)
-					os.Exit(1)
-				}
-				str = datastruct.name + funcname + "("
-				tmpparams := []string{}
-				for k, p := range fsf.Paramstype {
-					fkn := ""
-					fpt := ""
-					switch f[k+1].(type) {
-					case string:
-						fkn = fmt.Sprintf(`"%s"`, f[k+1])
-						fpt = "string"
-						if f[k+1].(string)[:1] == "@" {
-							fp := f[k+1].(string)[1:]
-							if drt, ok := datastruct.request[fp]; ok {
-								fpt = drt.(string)
-								fkn = "d.req." + strings.ToUpper(f[k+1].(string)[1:])
-							} else {
-								fmt.Println("parser ", datastruct.name, termstruct.name, "func err:func", car, " Not Found Key ", fp)
-								os.Exit(1)
-							}
-						}
-					case int:
-						fkn = fmt.Sprintf("%d", f[k+1].(int))
-						fpt = "int"
-					case int64:
-						fkn = fmt.Sprintf("%d", f[k+1].(int64))
-						fpt = "int64"
-					case float32:
-						fkn = fmt.Sprintf("%v", f[k+1])
-						fpt = "float32"
-					case float64:
-						fkn = fmt.Sprintf("%v", f[k+1])
-						fpt = "float64"
-					case bool:
-						fkn = fmt.Sprintf("%v", f[k+1].(bool))
-						fpt = "bool"
-					default:
-						fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: unknown type ", reflect.TypeOf(f[k+1]).Name())
-						os.Exit(1)
+	if len(f) < 2 {
+		formatErr("Complex ExecErr: params must be greater than one,", f)
+	}
 
-					}
-					if fpt == "string" && f[k+1].(string)[:1] == "@" {
-						fp := f[k+1].(string)[1:]
-						if drt, ok := datastruct.request[fp]; ok {
-							fpt = drt.(string)
-						} else {
-							fmt.Println("parser ", datastruct.name, termstruct.name, "func err:func", car, " Not Found Key ", fp)
-							os.Exit(1)
-						}
-					}
-					if p != fpt {
-						fmt.Println("parser ", datastruct.name, " ", termstruct.name, " func err: func", car,
-							k, "param type is", p, " but give", fpt)
-						os.Exit(1)
-					}
-					tmpparams = append(tmpparams, fkn)
-				}
-				str += strings.Join(tmpparams, ",")
-				if fsf.Name == "filter" {
-					str += ",d.req.STime"
-				}
-				str += ")"
-				return str, fsf.ReturnType[0]
-			} else {
-				fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: not found func", funcname)
-				os.Exit(1)
+	car := fmt.Sprintf("%v", f[0])
+	cartype := "op"
+	returntype := ""
+	paramsList := []string{}
+	funcname := ""
+
+	if len(car) > 0 && car[:1] == "$" {
+		//特殊方法
+		cartype = "func"
+		//特殊操作符
+		//判断特殊函数是否存在
+		if fsf, ok := datastruct.funcsmap[car[1:]]; ok {
+			//判断输入参数是否正确
+			if len(f)-1 != len(fsf.Paramstype) {
+				formatErr("Complex ExecErr: func need ", len(fsf.Paramstype), "params,but get ", len(f)-1, ".", f)
 			}
-			//函数调用
+			funcname = fsf.Name
+			str = datastruct.name + car[1:] + "("
+			paramsList = fsf.Paramstype
+			returntype = fsf.ReturnType[0]
 		} else {
-			//运算比较符
-			if v, ok := S_Expmap[car.(string)]; ok {
-				if v.paramnum != -1 && v.paramnum != len(f)-1 {
-					//op item数量与期望不匹配
-					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
-						" need ", v.paramnum, " param")
-					os.Exit(1)
+			// 特殊方法不存在
+			formatErr("Complex ExecErr: func not found", f)
+		}
+	} else {
+		//基础操作符
+		if v, ok := S_Expmap[car]; ok {
+			if v.paramnum != -1 && v.paramnum != len(f)-1 {
+				//op item数量与期望不匹配
+				formatErr("Complex ExecErr: op need ", v.paramnum, "params,but get ", len(f)-1, ".", f)
+			}
+			paramsList = v.child_type
+			returntype = v.return_type
+		} else {
+			// 基础操作不存在
+			formatErr("Complex ExecErr: op not found", f)
+		}
+	}
+	tmpparams := []string{}
+	//检测输入参数列表的各个数据类型是否一致
+	for k, p := range f[1:] {
+		fkn := "" // 代码串
+		fpt := "" //类型字符串
+		switch p.(type) {
+		case string:
+			fkn = fmt.Sprintf(`"%s"`, p)
+			fpt = "string"
+			if len(p.(string)) > 0 && p.(string)[:1] == "@" {
+				fp := p.(string)[1:]
+				if drt, ok := datastruct.request[fp]; ok {
+					fpt = drt.(string)
+					fkn = "d.req." + strings.ToUpper(p.(string)[1:])
+				} else {
+					// 没有这个key
+					formatErr("Complex ExecErr: not found key,", f)
 				}
-				if child_type != v.return_type && v.return_type != "interface" {
-					//op返回值类型与期望不匹配
-					fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
-						" return ", v.return_type, " but want ", child_type)
-					os.Exit(1)
-				}
-				//解析op 操作元素
-				param := []string{}
-				paramtype := []string{}
-				for _, tf := range f[1:] {
-					vtype := ""
-					str := ""
-					switch tf.(type) {
-					case string:
-						if len(tf.(string)) > 0 && tf.(string)[:1] == "@" {
-							if vt, ok := datastruct.request[tf.(string)[1:]]; ok {
-								vtype = vt.(string)
-								param = append(param, "d.req."+strings.ToUpper(tf.(string)[1:]))
-							} else {
-								fmt.Println("parser ", datastruct.name, " ", termstruct.name, " key err: Not Found Key ", tf)
-								os.Exit(1)
-							}
-						} else {
-							vtype = "string"
-							param = append(param, "\""+tf.(string)+"\"")
-						}
-					case []interface{}:
-						str, vtype = complexTermFilter(tf.([]interface{}), v.child_type)
-						param = append(param, str)
-					case int, int64, float32, float64:
-						param = append(param, fmt.Sprintf("%v", tf))
-						vtype = reflect.TypeOf(tf).Name()
-					case bool:
-						param = append(param, fmt.Sprintf("%v", tf.(bool)))
-						vtype = "bool"
-					default:
-						fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: unknown type ", reflect.TypeOf(tf).Name())
-						os.Exit(1)
-					}
-					if vtype != v.child_type && v.child_type != "eq" {
-						fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: op ", car,
-							" param return ", vtype, " but want ", v.child_type)
-						os.Exit(1)
-					}
-					paramtype = append(paramtype, vtype)
-				}
-				if v.child_type == "eq" {
-					eqrt := ""
-					for i, x := range paramtype[1:] {
-						eqrt = x
-						if paramtype[i] != x && reflect.TypeOf(param[i]).Name() != reflect.TypeOf(param[i+1]).Name() {
-							fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: can't use op ", car,
-								"with", paramtype[i], "and", x, f)
-							os.Exit(1)
-						}
-					}
-					if car == "+" {
-						return strings.Join(param, v.split), eqrt
+			}
+		case int:
+			fkn = fmt.Sprintf("%d", p.(int))
+			fpt = "int"
+		case int64:
+			fkn = fmt.Sprintf("%d", p.(int64))
+			fpt = "int64"
+		case float32:
+			fkn = fmt.Sprintf("%v", p)
+			fpt = "float32"
+		case float64:
+			fkn = fmt.Sprintf("%v", p)
+			fpt = "float64"
+		case bool:
+			fkn = fmt.Sprintf("%v", p.(bool))
+			fpt = "bool"
+		case []interface{}:
+			//多层
+			// 解析下一层
+			//TODO:多层的下层参数类型 默认使用了上级的
+			fkn, fpt = complexTerm(p.([]interface{}))
+		default:
+			formatErr("Complex ExecError: unknown type,", reflect.TypeOf(p).Name(), f)
+		}
+		//判断类型是否一致
+		if paramsList[0] == "eq" {
+			if len(paramsList) == 2 {
+				//已有子方法类型
+				if paramsList[1] == "interface" {
+					//interface类型 赋值参数类型
+					paramsList[1] = fpt
+				} else {
+					if paramsList[1] != fpt {
+						formatErr("Complex ExecErr: params type want", p, "have", fpt, f)
 					}
 				}
-				return strings.Join(param, v.split), v.return_type
 			} else {
-				//op 不存在
-				fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: not found op ", car, " ", f)
-				os.Exit(1)
+				//没有子类型添加子类型
+				paramsList = append(paramsList, fpt)
+			}
+		} else {
+			if paramsList[k] != fpt {
+				//数据类型不一致
+				formatErr("Complex ExecErr: params type want", p, "have", fpt, f)
 			}
 		}
-	default:
-		fmt.Println("parser ", datastruct.name, " ", termstruct.name, " filter err: first item must string ", f)
-		os.Exit(1)
+		tmpparams = append(tmpparams, fkn)
 	}
-	return "", ""
+	if cartype == "func" {
+		str += strings.Join(tmpparams, ",")
+		if funcname == "filter" {
+			//filter 自动添加stime参数
+			str += ",d.req.STime"
+		}
+		str += ")"
+	} else {
+		str += strings.Join(tmpparams, S_Expmap[car].split)
+	}
+	return str, returntype
 }
 func checkTermKey(term models.Term) {
+	//检查term的key中所用到的请求参数字段是否都存在
 	for _, i := range term.Key {
 		if i[:1] == "@" {
 			if _, ok := datastruct.request[i[1:]]; !ok {
-				fmt.Println("parser ", datastruct.name, " ", term.Name, " key err: Not Found Key ", i)
-				os.Exit(1)
+				formatErr("parse", datastruct.name, ":", term.Name, ".Key ERROR:not found key", i)
 			}
 		}
 	}
@@ -470,19 +394,21 @@ func parserDataRequest(s interface{}) {
 	datastruct.request = s.(map[string]interface{})
 	for k, t := range datastruct.request {
 		if t.(string)[:1] == "$" {
+			//特殊数据结构
 			filestr += strings.ToUpper(k) + "  models." + strings.ToUpper(t.(string)[1:]) + "\n"
 		} else {
 			filestr += strings.ToUpper(k) + "  " + t.(string) + "\n"
 		}
 	}
 	filestr += "STime int64 `json:\"s_time\"`\n"
+	//拼装请求数据go代码串
 	datastruct.requeststr = filestr
 }
 func writeBaseFile() {
 	tm, _ := os.OpenFile(TmpPath+"/base.go", os.O_RDWR|os.O_CREATE, os.ModePerm)
 	defer tm.Close()
 	if mm, err := ioutil.ReadFile(PWD + "/models/tmp.base.tmpl"); err != nil {
-		fmt.Println("parser base.go fail:", err)
+		formatErr("parser base.go fail:", err)
 	} else {
 		str := string(mm)
 		str = strings.Replace(str, "{{termmap}}", baseStrMap["termmap"], -1)
@@ -501,14 +427,14 @@ func setBaseTermMap(name string, term models.Term) {
 	if _, ok := termConfigMap[name]; !ok {
 		termConfigMap[name] = map[string]models.TermConfig{}
 	}
-	termConfigMap[name][term.Name] = models.TermConfig{Name: term.Name, Key: term.Key, IsSnow: term.IsSnow, Snow: term.Snow}
+	termConfigMap[name][term.Name] = models.TermConfig{Name: term.Name, Key: term.Key, IsSnow: term.IsSnow, Snow: term.Snow, SpKey: map[string]string{}}
 }
 
 func copyMainFile() {
 	tm, _ := os.OpenFile(TmpPath+"/main.go", os.O_RDWR|os.O_CREATE, os.ModePerm)
 	defer tm.Close()
 	if mm, err := ioutil.ReadFile(PWD + "/models/tmp.main.tmpl"); err != nil {
-		fmt.Println("parser main.go fail:", err)
+		formatErr("parser main.go fail:", err)
 	} else {
 		tm.Write(mm)
 	}
@@ -518,11 +444,10 @@ func checkPath() {
 	DataPath = PWD + "/data"
 	TmpPath = PWD + "/tmp"
 	if !utils.FileOrPathIsExist(DataPath) {
-		fmt.Println("data path not found:", DataPath)
-		os.Exit(1)
+		formatErr("data path not found:", DataPath)
 	}
 	if utils.FileOrPathIsExist(TmpPath) {
-		fmt.Println("clean tmp path:", TmpPath)
+		formatInfo("tmp path found:", TmpPath, "clear it")
 		os.RemoveAll(TmpPath)
 	}
 	utils.CreatePathAll(TmpPath)
@@ -553,10 +478,11 @@ func parserJsonFile(path string) {
 func assemble(file string, header bool) {
 	b, _ := ioutil.ReadFile(file)
 	if header {
+		//各数据源头文件
 		json := models.Json{}
 		e := utils.JsonDecode(b, &json)
 		if e != nil {
-			fmt.Println("load json file:", file, " error:", e.Error())
+			formatErr("load json file:", file, " error:", e.Error())
 		}
 		if v, ok := ParserMap[json.Name]; ok {
 			json.Term = v.Term
@@ -565,10 +491,11 @@ func assemble(file string, header bool) {
 			ParserMap[json.Name] = json
 		}
 	} else {
+		//各统计项文件
 		json := models.Term{}
 		e := utils.JsonDecode(b, &json)
 		if e != nil {
-			fmt.Println("load json file:", file, " error:", e.Error())
+			formatErr("load json file:", file, " error:", e.Error())
 		}
 		dirlist := strings.Split(file, "/")
 		belang := dirlist[len(dirlist)-2]

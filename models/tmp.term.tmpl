@@ -6,7 +6,7 @@ type {{termname}} struct {
 }
 
 func (t *{{termname}}) Exec(s interface{}) {
-	commands := RdsSendStruct{}
+	commands := utils.RdsSendStruct{}
 	d := s.(*{{name}})
   {{exec}}
 
@@ -17,7 +17,7 @@ func (t *{{termname}}) Exec(s interface{}) {
 		commands.Key = key.Key
 		now := utils.GetNowSec()
 		if (t.rotateatkey != key.Key) || t.rotateat < now {
-			snow.Rotate(&snow.SnowSys{key, nil, d.Tag, "{{term}}", d.req.STime}, t.Config.Snow)
+			snow.Rotate(&snow.SnowSys{key, nil, d.Tag, "{{term}}", d.req.STime,t.Config.SpKey}, t.Config.Snow)
 			t.rotateat = now
       t.rotateatkey = key.Key
 		}

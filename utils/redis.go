@@ -3,6 +3,7 @@ package utils
 import (
 	"time"
 
+	"fmt"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -78,4 +79,30 @@ func InitRedis(tag string) {
 		}
 		redispool[tag] = newRedisPool(&config)
 	}
+}
+
+type RdsSendStruct struct {
+	Key      string
+	Commands []RdsCommand
+}
+type RdsCommand struct {
+	Cmd string
+	V   []interface{}
+}
+
+func RdsBatchCommands(tag string, commands []*RdsSendStruct) {
+	conn := NewRedisConn(tag)
+	defer conn.Close()
+	conn.Dos("MULTI")
+	defer conn.Dos("EXEC")
+	var k string
+	for _, cs := range commands {
+		k = cs.Key
+		fmt.Println(k, cs.Commands)
+		for _, c := range cs.Commands {
+			c.V = append([]interface{}{k}, c.V...)
+			conn.Sends(c.Cmd, c.V...)
+		}
+	}
+
 }

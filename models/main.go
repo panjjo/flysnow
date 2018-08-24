@@ -51,11 +51,21 @@ var ErrMsgMap = map[int]string{
 }
 
 const (
+	SPKEYLAST = "last"
+	SPKEYAVG  = "avg"
+)
+
+var SpKeyMap = map[string]string{
+	SPKEYLAST: "时间段内保留最后一个值",
+	SPKEYAVG:  "时间段内平均值",
+}
+
+const (
 	MongoDT = "FS"
 	RedisKT = "fs"
 )
 
-type RANGELIST []struct {
+type LISTKV []struct {
 	Key   interface{} `json:"key"`
 	Value interface{} `json:"value"`
 }
@@ -65,6 +75,7 @@ type TermConfig struct {
 	Key    []string
 	IsSnow bool
 	Snow   []Snow
+	SpKey  map[string]string
 }
 
 type Json struct {

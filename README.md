@@ -52,7 +52,9 @@
              "shopid":"string",             #key为字段名，value为字段值类型(所支持的字段类型请看下面)
              "orderid":"string",
              "total":"float64",
-             "items":"$rangelist"           #$开头的为系统自定义结构(详情看 数据类型)
+             "day_total":"float64",
+             "member_num":"float64",
+             "items":"$listkv"             #$开头的为系统自定义结构(详情看 数据类型)
              }
            "filter":[                       #自定义过滤器
              {
@@ -75,10 +77,10 @@
                   ["$order_filter","@orderid"] # 调用过滤器过滤orderid ，此条件解析为 数据中status的值为succ并且orderid过滤不存在
                ],
                "do":[                       
-                 ["+=","succ",1],            # do 为执行操作的具体操作 
-                 ["+=","total",1],           # 此操作为 total+1
-                 ["+=","@shopid",1]          # 此为将传入字段中shopid作为key值加1
-                 ["rangesum","@items"]       # 循环计算(详情看 操作运算说明)
+                 ["+","succ",1],            # do 为执行操作的具体操作 
+                 ["+","total","@total"],    # 此操作为 total 值加上 传入的total值，@开头表示获取请求参数的值
+                 ["+","@shopid",1]          # 此为将传入字段中shopid作为key值加1
+                 ["+","@items"]             # 特殊结构，会有特殊结构的计算方式，详情见下方自定义结构的解释
                ]                            
              },                            
              {
@@ -86,7 +88,9 @@
                "do":[
                  ["+","fail",1],
                  ["+","@code",1],
-                 ["+","total",1]
+                 ["+","total",1],
+                 ["avg","day_total","@day_total"],     #特殊操作符，计算平均值 详情见特殊操作符解释
+                 ["last","memeber_num","@member_num"]  #特殊操作符，计算最新值 详情见特殊操作符解释
                ]
              }
            ],
@@ -111,8 +115,34 @@
     string  字符串
     float64 数值型（为了方便计算，int int64 float32 float64 统一设置为float64)
     bool    布尔型
-    $rangelist 列表型 此类型主要用于循环计算 如计算店铺内所有商品销售总额，数据源为order itmes为$rangelist类型 [{key:key1,value:value1},{key:key2,value:value2}]
-                  使用++运算符表示执行循环操作 将统计数据的key1 和key2的值分别加value1,value2
+    $listkv 列表型 此类型主要用于循环计算 如计算店铺内所有商品销售总额，数据源为order itmes为$listkv类型 [{key:key1,value:value1},{key:key2,value:value2}]
+                  使用+运算符表示执行循环操作 将统计数据的key1 和key2的值分别加value1,value2
+
+##  运算符
+
+  条件
+  
+    操作符        参数                              返回
+    +          interface,interface....             interface
+    ==         interface,interface                 bool
+    &&         bool,bool,bool.....                 bool
+    !=         interface,interface                 bool
+    ||         bool,bool,bool.....                 bool
+    $filter    string                              bool           # 过滤器类型函数，系统自动加入s_time参数
+
+  Do                                                              
+  Do 类型操作是针对redis操作 +=表示key.value+value
+  
+    操作符        参数                            
+    +          interface,float64
+    avg        interface,float64                                 # 平均值计算 例如 [avg ,key, @key] 在计算和归档时会生成一个@num_key字段记录次数，key值进行累加，在获取统计返回时 @key=key,key=key/@num_key
+    last       interface,float64                                 # 最新值计算，永远使用新值覆盖老值，数据不做其他计算，只做替换
+
+  示例：
+  
+    do:["+","@shopid",["+","@order_total","@order_discount"]]       #表示给key为shopid的值加上（order_total+order_discount)
+                                                                         shopid+=order_total+order_discount
+                                                                    #只要使用合适，可以无限嵌套
 
 ## 自定义函数
 
@@ -130,28 +160,3 @@
           whence=1
           duration=d
           表示获取昨天此时到现在的数据 表达式 start:now-offset*duration end:now
-##  运算符
-
-  条件
-  
-    操作符        参数                              返回
-    +          interface,interface....             interface
-    ==         interface,interface                 bool
-    &&         bool,bool,bool.....                 bool
-    !=         interface,interface                 bool
-    ||         bool,bool,bool.....                 bool
-    $filter    string                              bool            过滤器类型函数，系统自动加入stime参数
-
-  Do                                                              
-  Do 类型操作是针对redis操作 +=表示key.value+value
-  
-    操作符        参数                            
-    rangesum    $rangelist                        
-    +=          interface,float64
-
-  示例：
-  
-    do:["+=","@shopid",["+","@order_total","@order_discount"]]       #表示给key为shopid的值加上（order_total+order_discount)
-                                                                         shopid+=order_total+order_discount
-                                                                    #只要使用合适，可以无限嵌套
-

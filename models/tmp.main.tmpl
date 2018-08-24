@@ -13,11 +13,11 @@ type TMP struct {
 	Req     interface{}
 	Err     error
 	WG      *sync.WaitGroup
-	Commods []*RdsSendStruct
+	Commods []*utils.RdsSendStruct
 	lock    sync.Mutex
 }
 
-func (t *TMP) AddCommods(r *RdsSendStruct) {
+func (t *TMP) AddCommods(r *utils.RdsSendStruct) {
 	t.lock.Lock()
 	t.Commods = append(t.Commods, r)
 	t.lock.Unlock()
@@ -28,18 +28,8 @@ type DATATERM struct {
 	Terms []func(t interface{})
 }
 
-type RdsSendStruct struct {
-	Key      string
-	Commands []RdsCommand
-}
-type RdsCommand struct {
-	Cmd string
-	V   []interface{}
-}
-
-
 func (t *TMP) EXEC() (code int) {
-	t.Commods = []*RdsSendStruct{}
+	t.Commods = []*utils.RdsSendStruct{}
 	dt, ok := TermListMap[t.Tag]
 	if !ok {
 		return models.ErrMethodNotFount
@@ -58,7 +48,7 @@ func (t *TMP) EXEC() (code int) {
 	}
 	return t.Code
 }
-func SendRdsCommands(tag string, commands []*RdsSendStruct) {
+func SendRdsCommands(tag string, commands []*utils.RdsSendStruct) {
 	conn := utils.NewRedisConn(tag)
 	defer conn.Close()
 	conn.Dos("MULTI")
@@ -77,8 +67,8 @@ func SendRdsCommands(tag string, commands []*RdsSendStruct) {
 type DATA interface {
 	Parse() error
 }
-type Term interface{
-  SetConfig(c *models.TermConfig)
-  Exec(t interface{})
-  }
-  
+type Term interface {
+	SetConfig(c *models.TermConfig)
+	Exec(t interface{})
+}
+

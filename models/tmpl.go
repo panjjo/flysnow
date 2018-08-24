@@ -34,13 +34,12 @@ func (f *{{name}})Do(key string,t int64)bool{
 }
     `,
 	},
-	"rangesum": FSFuncStruct{
-		Name:       "rangesum",
-		Paramstype: []string{"rangelist"},
+	"listkv": FSFuncStruct{
+		Name: "listkv",
 		FuncBody: `
-    for _,i:=range d.req.{{name}}{
-		  commands.Commands = append(commands.Commands, RdsCommand{Cmd: "HINCRBYFLOAT", V: []interface{}{i.Key, i.Value}})
-      }
+for _,v:=range d.req.{{name}}{
+  commands.Commands=append(commands.Commands,utils.RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{v.Key,v.Value}})
+}
     `,
 	},
 }

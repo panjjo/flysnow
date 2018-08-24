@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type SnowSys struct {
@@ -17,6 +17,7 @@ type SnowSys struct {
 	RedisConn *utils.RedisConn
 	Tag, Term string
 	Now       int64
+	SpKey     map[string]string //特殊key处理
 }
 
 var snowlock rwmutex
@@ -66,7 +67,6 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
 	}
 	return
-
 }
 
 func Rotate(snowsys *SnowSys, snows []models.Snow) {
@@ -81,28 +81,31 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 	if b == nil {
 		return
 	}
-	tb1 := b.([]interface{})
-	if len(tb1) == 0 {
+	tb := b.([]interface{})
+	if len(tb) == 0 {
 		return
 	}
 	defer snowsys.RedisConn.Dos("DEL", snowsys.Key+"_rotate")
 	go func(tb []interface{}) {
 		//开始归档
-		dm := map[string]interface{}{}
-		//tb为redis 数据
-		//把tb 转化成map
-		for i := 0; i < len(tb); i = i + 2 {
-			dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
-		}
 		now := snowsys.Now
 		session := utils.MgoSessionDupl(tag)
 		defer session.Close()
+		//tb为redis 数据
+		//把tb 转化成map
+		dm := map[string]interface{}{}
+		for i := 0; i < len(tb); i = i + 2 {
+			dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
+		}
+
+		//特殊key处理
+		redisSpKey(dm, snowsys)
 
 		mc := session.DB(models.MongoDT + tag).C(term)
 		var data SnowData
 		//存储归档集合的开始时间，用作下一个归档集合的结束时间
 		var lasttime int64
-		retatedata := []map[string]interface{}{}
+		rotatedata := []map[string]interface{}{}
 		//循环归档配置
 		for sk, s := range snows {
 			//key = fs_shop_@shopid_xxxx_1_m
@@ -119,7 +122,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				td := []map[string]interface{}{}
 				//将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
 				data.Data = append(data.Data, dm)
-				retatedata = data.Data
+				rotatedata = data.Data
 				//复制当前归档集合开始时间
 				lasttime = data.STime
 				//循环第一归档内所有单位数据，判断是否超过此集合时间限制
@@ -128,7 +131,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 						if utils.TInt64(d) >= data.STime {
 							//因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
 							td = data.Data[k:]
-							retatedata = data.Data[:k]
+							rotatedata = data.Data[:k]
 							break
 						}
 					}
@@ -145,7 +148,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				//cinfo, err := mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
 				//第一归档数据upsert，确保一定至少有一条，不存在则写入
 				mc.Upsert(bson.M{"s_key": key}, data)
-				if len(retatedata) == 0 {
+				if len(rotatedata) == 0 {
 					//如果不存在超期数据，结束循环
 					break
 				}
@@ -161,16 +164,16 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				//复制当前归档集合开始时间
 				lasttime = data.STime
 				//赋值上一个集合所剩超期需归档数据集合
-				ttt := retatedata
+				ttt := rotatedata
 				td := []map[string]interface{}{}
-				retatedata = data.Data
+				rotatedata = data.Data
 				//循环第sk归档内所有单位数据，判断是否超过此集合时间限制
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
 						if utils.TInt64(d) >= data.STime {
 							//因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
 							td = data.Data[k:]
-							retatedata = data.Data[:k]
+							rotatedata = data.Data[:k]
 							break
 						}
 					}
@@ -184,16 +187,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 					for k1, v1 := range td {
 						//判断超期集合的元素是否属于当前集合中的一个子项，如果是累加到子项里面
 						if v["s_time"].(int64) >= v1["s_time"].(int64) && v["e_time"].(int64) <= v1["e_time"].(int64) {
-							for tk, tv := range v {
-								if tk != "s_time" && tk != "e_time" {
-									if v2, ok := v1[tk]; ok {
-										v1[tk] = utils.TFloat64(v2) + utils.TFloat64(tv)
-									} else {
-										v1[tk] = tv
-									}
-								}
-							}
-							td[k1] = v1
+							td[k1] = rotate(v, v1, snowsys.SpKey)
 							o = true
 						}
 					}
@@ -203,22 +197,21 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 							td = append(td, v)
 						} else {
 							//放到过期集合，进行下一个归档
-							retatedata = append(retatedata, v)
+							rotatedata = append(rotatedata, v)
 						}
 
 					}
 				}
 				mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
-				if len(retatedata) == 0 {
+				if len(rotatedata) == 0 {
 					break
 				}
 			}
 		}
-		if len(retatedata) > 0 {
-			fmt.Println("retat at last snow")
-			fmt.Printf("data:%+v\n", retatedata)
+		if len(rotatedata) > 0 {
+			utils.Log.ERROR.Printf("rotate last snow. term:%s-%s,key:%s,data:%v", snowsys.Tag, snowsys.Term, snowsys.SnowKey.Key, rotatedata)
 			tmp := bson.M{}
-			for _, v := range retatedata {
+			for _, v := range rotatedata {
 				for k1, v1 := range v {
 					if k1 == "s_time" || k1 == "e_time" {
 						continue
@@ -234,7 +227,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				"e_time": now, "tag": tag, "term": term, "index": snowsys.Index}})
 
 		}
-	}(tb1)
+	}(tb)
 }
 
 //rds key rotate
@@ -275,6 +268,7 @@ func ClearRedisKey(tag string) {
 								tag,
 								term,
 								now,
+								config.SpKey,
 							}
 							Rotate(newSnow, config.Snow)
 						}
@@ -284,4 +278,36 @@ func ClearRedisKey(tag string) {
 		}
 		time.Sleep(1 * time.Hour)
 	}
+}
+
+//处理redis的特殊key
+func redisSpKey(data map[string]interface{}, snow *SnowSys) {
+	commands := []*utils.RdsSendStruct{}
+	for k, _ := range data {
+		if tpe, ok := snow.SpKey[k]; ok {
+			if comms := utils.RDSSpKeyFuncs(tpe, k, data, snow.SnowKey); len(comms.Commands) > 0 {
+				commands = append(commands, &utils.RdsSendStruct{comms.Key, comms.Commands})
+			}
+		}
+	}
+	if len(commands) > 0 {
+		utils.RdsBatchCommands(snow.Tag, commands)
+	}
+}
+
+func rotate(from, to map[string]interface{}, spkey map[string]string) map[string]interface{} {
+	for tk, tv := range from {
+		if tk != "s_time" && tk != "e_time" && tk[:1] != "@" {
+			if tpe, ok := spkey[tk]; ok {
+				utils.RotateSpKeyFuncs(tpe, tk, from, to)
+			} else {
+				if v2, ok := to[tk]; ok {
+					to[tk] = utils.TFloat64(v2) + utils.TFloat64(tv)
+				} else {
+					to[tk] = tv
+				}
+			}
+		}
+	}
+	return to
 }
