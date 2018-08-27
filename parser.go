@@ -252,7 +252,7 @@ func complexTermDo(f []interface{}) string {
 	} else {
 	}
 
-	return fmt.Sprintf(`commands.Commands=append(commands.Commands,utils.RdsCommand{Cmd:"HINCRBYFLOAT",V:[]interface{}{%s,%s}})`, fkn, tvl)
+	return fmt.Sprintf(`commands.Commands=append(commands.Commands,utils.RdsCommand{Cmd:"%s",V:[]interface{}{%s,%s}})`, utils.RDSHINCRBYFLOAT, fkn, tvl)
 }
 
 //解析操作方法 [+...,Key1,Key2...]

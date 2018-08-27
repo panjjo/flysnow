@@ -7,6 +7,10 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+const (
+	RDSHINCRBYFLOAT = "HINCRBYFLOAT"
+)
+
 var redispool = map[string]*redis.Pool{}
 
 type RedisConn struct {

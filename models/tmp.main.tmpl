@@ -57,6 +57,10 @@ func SendRdsCommands(tag string, commands []*utils.RdsSendStruct) {
 	for _, cs := range commands {
 		k = cs.Key
 		for _, c := range cs.Commands {
+			//incr 0 的命令过滤掉
+			if c.Cmd == utils.RDSHINCRBYFLOAT && c.V[1].(float64) == 0 {
+				continue
+			}
 			c.V = append([]interface{}{k}, c.V...)
 			conn.Sends(c.Cmd, c.V...)
 		}
