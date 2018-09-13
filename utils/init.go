@@ -122,6 +122,14 @@ func init() {
 	FSConfig.InitConfig(PWD + "/config/base.conf")
 	FSConfig.SetMod("sys")
 	Log = LogS{log4go.NewLogger(FSConfig.StringDefault("logger.level", "info"))}
+
+	if FSConfig.IntDefault("queue", 0) == 1 {
+		StartQueueListen = true
+		QUEUE_HOST = FSConfig.StringDefault("queue.Host", "guest:guest@127.0.0.1:5672/flysnow")
+		QUEUE_NAME = FSConfig.StringDefault("queue.Name", "flysnow")
+		QUEUE_EXCHANGE = FSConfig.StringDefault("queue.Exchange", "direct.flysnow")
+	}
+
 	if FSConfig.IntDefault("filter.Save", 0) == 0 {
 		FSBtree = &FilterBtree{btree.NewBtree(32), 0, false, nil, sync.RWMutex{}}
 	} else {
