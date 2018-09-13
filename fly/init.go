@@ -3,6 +3,7 @@ package fly
 import (
 	"flysnow/models"
 	"flysnow/utils"
+	"github.com/streadway/amqp"
 	"runtime"
 )
 
@@ -61,8 +62,8 @@ func Init() {
 				log.ERROR.Printf("Start Queue Listen Err:%v", err)
 				return
 			}
-			for t := range pch {
-				go func() {
+			for d := range pch {
+				go func(t amqp.Delivery) {
 					data := &BodyData{}
 					if err := utils.JsonDecode(t.Body, data); err != nil {
 						log.ERROR.Printf("Json Decode Queue Body Err:%v", err)
@@ -78,7 +79,7 @@ func Init() {
 						log.WARN.Printf("Queue data op not found ,op:%s", data.Op)
 					}
 					t.Ack(false)
-				}()
+				}(d)
 			}
 		}()
 	}
