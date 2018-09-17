@@ -87,6 +87,9 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	if req.Span != 0 {
 		req.IsSpan = true
 	}
+	if req.ETime == 0 {
+		req.ETime = utils.DurationMap["d"](utils.GetNowSec(), 1)
+	}
 	mgos := utils.MgoSessionDupl(tag)
 	defer mgos.Close()
 	mc := mgos.DB(models.MongoDT + tag).C(req.Term)
@@ -161,17 +164,6 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		if v, ok := groupdata[gsk]; ok {
 			//相同分组的累加到一起
 			rotate(l, v, termConfig.SpKey)
-			/*for lk, lv := range l {
-				switch lk {
-				case "", "s_time", "e_time", "@index", "@groupkey":
-				default:
-					if llv, ok := v[lk]; ok {
-						v[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
-					} else {
-						v[lk] = lv
-					}
-				}
-			}*/
 		} else {
 			//新的一组
 			groupdata[gsk] = l
@@ -187,22 +179,42 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			rotate(v, total, termConfig.SpKey)
 			//处理单项特殊key并加入排序集合
 			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
-			/*for lk, lv := range v {
-				switch lk {
-				case "", "s_time", "e_time", "@index", "@groupkey":
-					total[lk] = lv
-				default:
-					if llv, ok := total[lk]; ok {
-						total[lk] = utils.TFloat64(llv) + utils.TFloat64(lv)
-					} else {
-						total[lk] = lv
-					}
-				}
-			}*/
 		}
 	}
 	//spkey,处理合计的特殊key
 	total = spkeystat(total, termConfig.SpKey)
+	//按照时间skip的，补充无时间统计的数据
+	if req.IsSpan && (req.STime != 0 || len(sortdata) > 0) {
+		emptyIndex := map[string]string{}
+		for _, k := range termConfig.Key {
+			emptyIndex[k[1:]] = ""
+		}
+		keymaps := map[int64]interface{}{}
+		for _, data := range sortdata {
+			keymaps[data.(map[string]interface{})["s_time"].(int64)] = data
+		}
+		nums := len(sortdata)
+		sortdata = []interface{}{}
+		var stime, etime int64
+		etime = req.ETime
+		for {
+			etime = utils.DurationMap[req.SpanD](etime-1, req.Span)
+			stime = utils.DurationMap[req.SpanD+"l"](etime, req.Span)
+			if etime <= req.STime {
+				break
+			}
+			if req.STime == 0 && nums == 0 {
+				break
+			}
+			if v, ok := keymaps[stime]; ok {
+				sortdata = append(sortdata, v)
+			} else {
+				sortdata = append(sortdata, map[string]interface{}{"s_time": stime, "e_time": etime, "@index": emptyIndex})
+			}
+			etime = stime
+			nums -= 1
+		}
+	}
 	//sort
 	if len(req.Sort) == 2 {
 		sortdata = SortMapList(sortdata, req.Sort[0], req.Sort[1].(bool))

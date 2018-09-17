@@ -4,6 +4,7 @@ import (
 	"flysnow/models"
 )
 
+//归档时redis需要针对spkey做的特殊处理
 func RDSSpKeyFuncs(t, key string, data map[string]interface{}, rkey *SnowKey) RdsSendStruct {
 	switch t {
 	case models.SPKEYLAST:
@@ -29,6 +30,7 @@ func spkeyAvgRedis(key string, data map[string]interface{}, rkey *SnowKey) RdsSe
 	return RdsSendStruct{rkey.Key, []RdsCommand{RdsCommand{"HINCRBYFLOAT", []interface{}{key, TFloat64(data[key])}}}}
 }
 
+// 归档时redis,mongo数据进行的计算
 func RotateSpKeyFuncs(t, key string, from, data map[string]interface{}) map[string]interface{} {
 	switch t {
 	case models.SPKEYLAST:
@@ -48,6 +50,9 @@ func spkeyLastRotate(key string, value interface{}, data map[string]interface{})
 func spkeyAvgRotate(key string, from, data map[string]interface{}) {
 	//avg 值累加，附加一个计数字段  avg=key/@key
 	numkey := "@num_" + key
+	if _, ok := from[numkey]; !ok {
+		from[numkey] = 1
+	}
 	if v, ok := data[key]; ok {
 		data[key] = TFloat64(v) + TFloat64(from[key])
 		data[numkey] = TFloat64(data[numkey]) + TFloat64(from[numkey])
@@ -57,6 +62,7 @@ func spkeyAvgRotate(key string, from, data map[string]interface{}) {
 	}
 }
 
+//统计时的特殊计算
 func StatSpKeyFuncs(t, key string, data map[string]interface{}) map[string]interface{} {
 	switch t {
 	case models.SPKEYLAST:
@@ -71,5 +77,8 @@ func StatSpKeyFuncs(t, key string, data map[string]interface{}) map[string]inter
 
 func spkeyAvgStat(key string, data map[string]interface{}) {
 	data["@"+key] = data[key]
+	if _, ok := data["@num_"+key]; !ok {
+		data["@num_"+key] = 1
+	}
 	data[key] = TFloat64(data[key]) / TFloat64(data["@num_"+key])
 }

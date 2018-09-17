@@ -54,7 +54,6 @@ func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
 				tmpstrs := []ComplexRdsKey{}
 				for _, str := range strs {
 					for _, ttk := range v2["$in"].([]interface{}) {
-						//str.keys = append(str.keys, key+"_"+ttk.(string))
 						tmpstrs = append(tmpstrs, ComplexRdsKey{keys: append(str.keys, key+"_"+ttk.(string)), Re: str.Re})
 					}
 				}

@@ -11,7 +11,7 @@ func (s *Statistics) reader(d *BodyData) {
 	if err != nil {
 		log.ERROR.Printf("Stat error tag:%s,err:%s", d.Tag, err)
 	}
-	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%s", d.Connid, d.Op, d.Tag, string(d.Body))
+	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%v", d.Connid, d.Op, d.Tag, result)
 	ConnRespChannel <- &connResp{d.Connid, 0, result}
 }
 
@@ -24,7 +24,7 @@ func (s *Clear) reader(d *BodyData) {
 	if err != nil {
 		log.ERROR.Printf("Clear error err:%s", err)
 	}
-	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%s", d.Connid, d.Op, d.Tag, string(d.Body))
+	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%v", d.Connid, d.Op, d.Tag, result)
 	ConnRespChannel <- &connResp{d.Connid, result, err}
 }
 func ClearRedisKey(tag string) {
