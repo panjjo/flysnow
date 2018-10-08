@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flysnow/utils"
 	"fmt"
 	"github.com/panjjo/go-flysnow"
 	"sync"
@@ -15,15 +16,26 @@ func main() {
 func query() {
 	conn, err := flysnow.NewConnection("192.168.1.90", 22258)
 	fmt.Println(err)
-	res, err := conn.Stat("shop", &flysnow.StatQuery{
-		Term: "shop",
+	res, err := conn.Stat("type", &flysnow.StatQuery{
+		Term: "type",
 		Index: map[string]interface{}{
-			"shopid": "1234",
+			"shopid": "bbbcf76d616b5870008a3b314f75ede8",
 		},
-		Group: []string{"s_time"},
+		Spand: "d",
+		Span:  1,
+		STime: 1537718400,
+		ETime: 1538323200,
+		/*Group: []string{"typeid",},*/
+		Group: []string{"typeid", "s_time"},
 	})
 	fmt.Println(err)
-	fmt.Println(res.Code, string(res.Data))
+	data := map[string]interface{}{}
+	utils.JsonDecode(res.Data, &data)
+	fmt.Println(res.Code)
+	fmt.Println(data["num"])
+	for _, v := range data["list"].([]interface{}) {
+		fmt.Println(v)
+	}
 }
 func send() {
 	wgp := sync.WaitGroup{}
@@ -46,5 +58,4 @@ func send() {
 	}
 	wgp.Wait()
 	fmt.Println(time.Since(no))
-
 }

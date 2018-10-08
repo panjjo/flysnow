@@ -157,6 +157,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	groupdata := map[string]map[string]interface{}{}
 	for _, l := range tl {
 		skip, gsk := req.GSKey(l)
+		l["@groupkey"] = gsk
 		if skip {
 			//时间不满足，跳过
 			continue
@@ -189,9 +190,16 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		for _, k := range termConfig.Key {
 			emptyIndex[k[1:]] = ""
 		}
-		keymaps := map[int64]interface{}{}
+		keymaps := map[int64][]interface{}{}
+		var dataTime int64
 		for _, data := range sortdata {
-			keymaps[data.(map[string]interface{})["s_time"].(int64)] = data
+			dataTime = data.(map[string]interface{})["s_time"].(int64)
+			if _, ok := keymaps[dataTime]; !ok {
+				keymaps[dataTime] = []interface{}{data}
+			} else {
+				keymaps[dataTime] = append(keymaps[dataTime], data)
+
+			}
 		}
 		nums := len(sortdata)
 		sortdata = []interface{}{}
@@ -207,12 +215,12 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				break
 			}
 			if v, ok := keymaps[stime]; ok {
-				sortdata = append(sortdata, v)
+				sortdata = append(sortdata, v...)
 			} else {
 				sortdata = append(sortdata, map[string]interface{}{"s_time": stime, "e_time": etime, "@index": emptyIndex})
 			}
 			etime = stime
-			nums -= 1
+			nums--
 		}
 	}
 	//sort
