@@ -1,3 +1,3 @@
-[submodule "data"]
-	path = data
-	url = git@git.yunss.com:panjjo/fsconfig.git
+[submodule "fsconfig"]
+	path = fsconfig
+	url = git@gogs.yunss.com:free/fsconfig.git
