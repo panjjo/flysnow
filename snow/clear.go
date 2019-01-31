@@ -1,8 +1,8 @@
 package snow
 
 import (
-	"flysnow/models"
-	"flysnow/utils"
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
 	"fmt"
 
 	"gopkg.in/mgo.v2/bson"

@@ -1,8 +1,8 @@
 package snow
 
 import (
-	"flysnow/models"
-	"flysnow/utils"
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,24 +44,31 @@ type SnowData struct {
 }
 
 func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
+	snowlock.l.Lock()
+	defer snowlock.l.Unlock()
+
 	now := snowsys.Now
 	b, _ := snowsys.RedisConn.Dos("HGET", snowsys.Key, "e_time")
 	if b != nil {
 		endt, _ := strconv.ParseInt(string(b.([]byte)), 10, 64)
-		if endt < now {
+		if endt < now || now <= utils.DurationMap[snow.InterValDuration+"l"](endt, snow.Interval) {
+			// 正常rotate 新来数据时间>redis的结束时间 生成新的一条
+			// 旧数据rotate  新来数据时间<= redis的开始时间 讲现有数据rotate ,生成老数据对应的redis数据
+			// 对于数据造成的同个snow有多条数据，在mongo rotate是进行合并
 			bl = true
-			snowlock.l.Lock()
 			snowsys.RedisConn.Dos("RENAME", snowsys.Key, snowsys.Key+"_rotate")
 			if !snowsys.SnowKey.KeyCheck {
+				// 非全局自检 新增一个key
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
 			}
-			snowlock.l.Unlock()
 		} else {
 			return
 		}
 	} else if !snowsys.SnowKey.KeyCheck {
+		// redis中没有数据，生成新的一条
+		// KeyCheck=true 标识每天的自动全局rotate
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
@@ -115,17 +122,41 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				//获取第一个归档mongo数据集合
 				//第一归档表示从redis归档到mongo，时间跨度
 				mc.Find(bson.M{"s_key": key}).One(&data)
-				//重置mongo第一个归档数据集合的截止时间,为redis数据的截止时间
-				data.ETime = dm["e_time"].(int64)
-				//根据第一归档数据集合的存储时间总长度，计算当前集合的开始时间
-				data.STime = utils.DurationMap[s.TimeoutDuration+"l"](data.ETime, s.Timeout)
+
+				// 重置mongo第一个归档数据集合的截止时间,为redis数据的截止时间
+				if data.ETime < dm["e_time"].(int64) {
+					//如果mongo第一归档截止时间小于 redis截止时间 ，正常rotate
+					data.ETime = dm["e_time"].(int64)
+					//根据第一归档数据集合的存储时间总长度，计算当前集合的开始时间
+					data.STime = utils.DurationMap[s.TimeoutDuration+"l"](data.ETime, s.Timeout)
+					//将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
+					data.Data = append(data.Data, dm)
+				} else {
+					// 老旧数据rotate 不需要进行时间的替换
+					// 老旧数据 循环 第一归档数据集合 进行判断是否需要数据合并
+					for i, d := range data.Data {
+						if d["e_time"].(int64) == dm["e_time"].(int64) {
+							// 单位数据时间与新数据时间一致
+							// 进行合并 ，应该本就是一天数据，无需进行spkey处理
+							data.Data[i] = rotate(d, dm, map[string]string{})
+							break
+						} else if d["e_time"].(int64) > dm["e_time"].(int64) {
+							// 单位数据时间大于新数据时间，表示需要将新数据插入到此数据位置
+							f := append([]map[string]interface{}{}, data.Data[:i]...)
+							s := append([]map[string]interface{}{}, data.Data[i:]...)
+							data.Data = append(append(f, dm), s...)
+							break
+						}
+					}
+				}
+				// 本次归档集合剩余需要保存的列表
 				td := []map[string]interface{}{}
-				//将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
-				data.Data = append(data.Data, dm)
+
+				// rotatedata 需要进行下次归档的数据，默认为全部数据
 				rotatedata = data.Data
 				//复制当前归档集合开始时间
 				lasttime = data.STime
-				//循环第一归档内所有单位数据，判断是否超过此集合时间限制
+				// 1. 循环第一归档内所有单位数据，判断是否超过此集合时间限制
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
 						if utils.TInt64(d) >= data.STime {

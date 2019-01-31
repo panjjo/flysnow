@@ -1,3 +1,0 @@
-[submodule "fsconfig"]
-	path = fsconfig
-	url = git@gogs.yunss.com:free/fsconfig.git

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"flysnow/models"
-	"flysnow/utils"
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
 	"fmt"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -22,9 +23,9 @@ var S_Expmap = map[string]sExpStruct{
 }
 
 type sExpStruct struct {
-	paramnum    int      //参数个数
+	paramnum    int      // 参数个数
 	return_type string   // 返回类型
-	child_type  []string //请求参数类型 eq 表示类型一致即可
+	child_type  []string // 请求参数类型 eq 表示类型一致即可
 	split       string   // 接串连接符
 }
 
@@ -32,19 +33,19 @@ var suffix = ".json"
 var PWD, DataPath, TmpPath string
 var ParserMap map[string]models.Json // 存放统计项配置文件数据
 var baseStrMap map[string]string     // tmp/base.go 文件代码串
-var datastruct dataStruct            //单配置文件的解析数据
+var datastruct dataStruct            // 单配置文件的解析数据
 var termstruct termStruct
 var termConfigMap map[string]map[string]models.TermConfig
 
 type dataStruct struct {
-	name       string                         //名称
-	termname   string                         //当前解析的term名称
-	request    map[string]interface{}         //请求参数
-	requeststr string                         //请求参数组装的go代码
-	term       []termStruct                   //数据源下面的统计项列表
-	funcsmap   map[string]models.FSFuncStruct //系统函数的列表
-	funcstr    string                         //系统函数组装的go代码
-	data       models.Json                    //统计项源数据
+	name       string                         // 名称
+	termname   string                         // 当前解析的term名称
+	request    map[string]interface{}         // 请求参数
+	requeststr string                         // 请求参数组装的go代码
+	term       []termStruct                   // 数据源下面的统计项列表
+	funcsmap   map[string]models.FSFuncStruct // 系统函数的列表
+	funcstr    string                         // 系统函数组装的go代码
+	data       models.Json                    // 统计项源数据
 }
 type termStruct struct {
 	name string
@@ -78,33 +79,33 @@ func main() {
 	DataPath = PWD + "/data"
 	TmpPath = PWD + "/tmp"
 	suffix = strings.ToUpper(suffix)
-	//检查文件目录是否存在并合法  data/  tmp/
+	// 检查文件目录是否存在并合法  data/  tmp/
 	checkPath()
 	// 复制生成 tmp/main.go
 	copyMainFile()
 	// 加载统计项配置文件
 	parserJsonFile(DataPath)
-	//解析配置文件
+	// 解析配置文件
 	parserJson()
 	formatInfo("parser finish")
 }
 
 func parserJson() {
-	//循环所有配置文件
+	// 循环所有配置文件
 	for name, v := range ParserMap {
 		datastruct = dataStruct{funcsmap: map[string]models.FSFuncStruct{}, term: []termStruct{}, data: v}
 		datastruct.name = name
-		//解析请求数据
+		// 解析请求数据
 		parserDataRequest(v.Reqdata)
-		//解析过滤器
+		// 解析过滤器
 		parserFuncFilter(v.Filter)
 		// tmp/base.go 下的 TermListMap 组装代码
 		baseStrMap["termlistmap"] += "\"" + name + "\":&DATATERM{\nData:New" + strings.ToUpper(name) + ",\nTerms:[]func(t interface{}){\n"
-		//循环各统计项
+		// 循环各统计项
 		for _, term := range v.Term {
 			setBaseTermMap(name, term)
 			datastruct.termname = term.Name
-			//检查term 的key 所需要的参数是否存在
+			// 检查term 的key 所需要的参数是否存在
 			checkTermKey(term)
 			termstruct = termStruct{}
 			termstruct.name = term.Name
@@ -148,7 +149,7 @@ func writeTermFile() {
 	tm.WriteString(waitwritestr)
 }
 func parserFuncFilter(fs []models.FSFilter) {
-	//解析过滤器
+	// 解析过滤器
 	funcstruct := models.FSFuncMap["filter"]
 	for _, f := range fs {
 		if _, ok := utils.DurationMap[f.Duration]; !ok {
@@ -161,7 +162,7 @@ func parserFuncFilter(fs []models.FSFilter) {
     %s=tmp%s.Do
     `, f.OffSet, f.Whence, f.Name, f.Duration, datastruct.name+f.Name, datastruct.name+f.Name)
 		datastruct.funcsmap[f.Name] = funcstruct
-		//组装方法代码串
+		// 组装方法代码串
 		datastruct.funcstr += str
 	}
 
@@ -171,17 +172,17 @@ func complexExec(term models.Term) (str string) {
 		isif := false
 		tmpstr := ""
 		if len(e.Filter) > 0 {
-			//解析条件
+			// 解析条件
 			ifstr, res_type := complexTerm(e.Filter)
 			if res_type != "bool" {
-				//条件返回结果不是bool类型 报错
+				// 条件返回结果不是bool类型 报错
 				formatErr("Filter Error: return type must bool but get", res_type, "filter:", e.Filter)
 			}
 			tmpstr = "if " + ifstr + "{\n"
 			isif = true
 		}
 		if len(e.Do) > 0 {
-			//解析do操作
+			// 解析do操作
 			for _, d := range e.Do {
 				tmpstr += complexTermDo(d) + "\n"
 			}
@@ -198,7 +199,7 @@ func complexTermDo(f []interface{}) string {
 		formatErr("Complex DoErr:request params num must be greater than 2,get:", len(f), f)
 	}
 	car, ok := f[0].(string)
-	//op 必须为string
+	// op 必须为string
 	if !ok {
 		formatErr("Complex ExecErr: op not found", f)
 	}
@@ -207,25 +208,25 @@ func complexTermDo(f []interface{}) string {
 	default:
 		formatErr("Complex ExecErr: op not found", f)
 	}
-	var fkn string //更新键名
-	var tvl string //更新键的值
-	//第一个参数必须为string,为redis操作的key
+	var fkn string // 更新键名
+	var tvl string // 更新键的值
+	// 第一个参数必须为string,为redis操作的key
 	first, ok := f[1].(string)
 	if first == "" {
 		formatErr("Complex ExecErr: op the first params is empoty", f)
 	}
 
 	if first[:1] == "@" {
-		//传入参数的判断
+		// 传入参数的判断
 		fp := first[1:]
 		if drt, ok := datastruct.request[fp]; ok {
 			switch strings.ToLower(drt.(string)) {
-			//特殊结构
+			// 特殊结构
 			case "$listkv":
-				//循环计算,直接替换返回
+				// 循环计算,直接替换返回
 				return strings.Replace(models.FSFuncMap["listkv"].FuncBody, "{{name}}", strings.ToUpper(fp), -1)
 			default:
-				//简单取值
+				// 简单取值
 				fkn = "d.req." + strings.ToUpper(fp)
 			}
 		} else {
@@ -233,10 +234,10 @@ func complexTermDo(f []interface{}) string {
 			formatErr("Complex ExecErr: not found key,", fp, f)
 		}
 	} else {
-		//普通key
+		// 普通key
 		fkn = fmt.Sprintf(`"%s"`, first)
 	}
-	//spkey 写入termconfig
+	// spkey 写入termconfig
 	switch car {
 	case "avg", "last":
 		spkey := termConfigMap[datastruct.name][datastruct.termname]
@@ -245,7 +246,7 @@ func complexTermDo(f []interface{}) string {
 
 	}
 
-	//从除op外第二个参数开始都可以当做是+的元素处理
+	// 从除op外第二个参数开始都可以当做是+的元素处理
 	str, returntype := complexTerm(append([]interface{}{"+"}, f[2:]...))
 	if returntype == "float64" {
 		tvl = str
@@ -255,9 +256,9 @@ func complexTermDo(f []interface{}) string {
 	return fmt.Sprintf(`commands.Commands=append(commands.Commands,utils.RdsCommand{Cmd:"%s",V:[]interface{}{%s,%s}})`, utils.RDSHINCRBYFLOAT, fkn, tvl)
 }
 
-//解析操作方法 [+...,Key1,Key2...]
+// 解析操作方法 [+...,Key1,Key2...]
 func complexTerm(f []interface{}) (str string, return_type string) {
-	//获取op
+	// 获取op
 	if len(f) < 2 {
 		formatErr("Complex ExecErr: params must be greater than one,", f)
 	}
@@ -269,12 +270,12 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 	funcname := ""
 
 	if len(car) > 0 && car[:1] == "$" {
-		//特殊方法
+		// 特殊方法
 		cartype = "func"
-		//特殊操作符
-		//判断特殊函数是否存在
+		// 特殊操作符
+		// 判断特殊函数是否存在
 		if fsf, ok := datastruct.funcsmap[car[1:]]; ok {
-			//判断输入参数是否正确
+			// 判断输入参数是否正确
 			if len(f)-1 != len(fsf.Paramstype) {
 				formatErr("Complex ExecErr: func need ", len(fsf.Paramstype), "params,but get ", len(f)-1, ".", f)
 			}
@@ -287,10 +288,10 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 			formatErr("Complex ExecErr: func not found", f)
 		}
 	} else {
-		//基础操作符
+		// 基础操作符
 		if v, ok := S_Expmap[car]; ok {
 			if v.paramnum != -1 && v.paramnum != len(f)-1 {
-				//op item数量与期望不匹配
+				// op item数量与期望不匹配
 				formatErr("Complex ExecErr: op need ", v.paramnum, "params,but get ", len(f)-1, ".", f)
 			}
 			paramsList = v.child_type
@@ -301,10 +302,10 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 		}
 	}
 	tmpparams := []string{}
-	//检测输入参数列表的各个数据类型是否一致
+	// 检测输入参数列表的各个数据类型是否一致
 	for k, p := range f[1:] {
 		fkn := "" // 代码串
-		fpt := "" //类型字符串
+		fpt := "" // 类型字符串
 		switch p.(type) {
 		case string:
 			fkn = fmt.Sprintf(`"%s"`, p)
@@ -335,19 +336,19 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 			fkn = fmt.Sprintf("%v", p.(bool))
 			fpt = "bool"
 		case []interface{}:
-			//多层
+			// 多层
 			// 解析下一层
-			//TODO:多层的下层参数类型 默认使用了上级的
+			// TODO:多层的下层参数类型 默认使用了上级的
 			fkn, fpt = complexTerm(p.([]interface{}))
 		default:
 			formatErr("Complex ExecError: unknown type,", reflect.TypeOf(p).Name(), f)
 		}
-		//判断类型是否一致
+		// 判断类型是否一致
 		if paramsList[0] == "eq" {
 			if len(paramsList) == 2 {
-				//已有子方法类型
+				// 已有子方法类型
 				if paramsList[1] == "interface" {
-					//interface类型 赋值参数类型
+					// interface类型 赋值参数类型
 					paramsList[1] = fpt
 				} else {
 					if paramsList[1] != fpt {
@@ -355,12 +356,12 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 					}
 				}
 			} else {
-				//没有子类型添加子类型
+				// 没有子类型添加子类型
 				paramsList = append(paramsList, fpt)
 			}
 		} else {
 			if paramsList[k] != fpt {
-				//数据类型不一致
+				// 数据类型不一致
 				formatErr("Complex ExecErr: params type want", p, "have", fpt, f)
 			}
 		}
@@ -369,7 +370,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 	if cartype == "func" {
 		str += strings.Join(tmpparams, ",")
 		if funcname == "filter" {
-			//filter 自动添加stime参数
+			// filter 自动添加stime参数
 			str += ",d.req.STime"
 		}
 		str += ")"
@@ -379,7 +380,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 	return str, returntype
 }
 func checkTermKey(term models.Term) {
-	//检查term的key中所用到的请求参数字段是否都存在
+	// 检查term的key中所用到的请求参数字段是否都存在
 	for _, i := range term.Key {
 		if i[:1] == "@" {
 			if _, ok := datastruct.request[i[1:]]; !ok {
@@ -394,14 +395,14 @@ func parserDataRequest(s interface{}) {
 	datastruct.request = s.(map[string]interface{})
 	for k, t := range datastruct.request {
 		if t.(string)[:1] == "$" {
-			//特殊数据结构
+			// 特殊数据结构
 			filestr += strings.ToUpper(k) + "  models." + strings.ToUpper(t.(string)[1:]) + "\n"
 		} else {
 			filestr += strings.ToUpper(k) + "  " + t.(string) + "\n"
 		}
 	}
 	filestr += "STime int64 `json:\"s_time\"`\n"
-	//拼装请求数据go代码串
+	// 拼装请求数据go代码串
 	datastruct.requeststr = filestr
 }
 func writeBaseFile() {
@@ -476,11 +477,17 @@ func parserJsonFile(path string) {
 
 }
 func assemble(file string, header bool) {
-	b, _ := ioutil.ReadFile(file)
+	config := viper.New()
+	config.SetConfigType("json")
+	config.SetConfigFile(file)
+	err := config.ReadInConfig()
+	if err != nil {
+		formatErr("load json file:", file, " error:", err.Error())
+	}
 	if header {
-		//各数据源头文件
+		// 各数据源头文件
 		json := models.Json{}
-		e := utils.JsonDecode(b, &json)
+		e := config.Unmarshal(&json)
 		if e != nil {
 			formatErr("load json file:", file, " error:", e.Error())
 		}
@@ -491,9 +498,9 @@ func assemble(file string, header bool) {
 			ParserMap[json.Name] = json
 		}
 	} else {
-		//各统计项文件
+		// 各统计项文件
 		json := models.Term{}
-		e := utils.JsonDecode(b, &json)
+		e := config.Unmarshal(&json)
 		if e != nil {
 			formatErr("load json file:", file, " error:", e.Error())
 		}

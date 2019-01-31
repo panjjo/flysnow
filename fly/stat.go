@@ -1,6 +1,6 @@
 package fly
 
-import "flysnow/snow"
+import "github.com/panjjo/flysnow/snow"
 
 type Statistics struct {
 }
@@ -19,7 +19,7 @@ type Clear struct {
 }
 
 func (s *Clear) reader(d *BodyData) {
-	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%s", d.Connid, d.Op, d.Tag, string(d.Body))
+	log.DEBUG.Printf("receive connid:%s, op:%d,tag:%s,data:%s", d.Connid, d.Op, d.Tag, string(d.Body))
 	err, result := snow.Clear(d.Body)
 	if err != nil {
 		log.ERROR.Printf("Clear error err:%s", err)

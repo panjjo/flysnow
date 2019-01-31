@@ -2,8 +2,8 @@ package fly
 
 import (
 	"encoding/hex"
-	"flysnow/models"
-	"flysnow/utils"
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
 	"math/rand"
 	"net"
 	"sync"

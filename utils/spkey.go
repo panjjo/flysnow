@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"flysnow/models"
+	"github.com/panjjo/flysnow/models"
 )
 
 //归档时redis需要针对spkey做的特殊处理

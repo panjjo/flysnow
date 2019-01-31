@@ -1,9 +1,9 @@
 package utils
 
 import (
-	//	"code.google.com/p/log4go"
+	// 	"code.google.com/p/log4go"
 	"errors"
-	"flysnow/utils/btree"
+	"github.com/panjjo/flysnow/utils/btree"
 	"os"
 	"sync"
 	"time"
@@ -59,7 +59,7 @@ func (fb *FilterBtree) initBtreeByFile() {
 	while := true
 	for while {
 		if n, e := fb.f.Read(b); e == nil {
-			//if n, e := fb.f.ReadAt(b, int64(fb.offset)); e == nil {
+			// if n, e := fb.f.ReadAt(b, int64(fb.offset)); e == nil {
 			if n != len(b) {
 				while = false
 			}
@@ -83,7 +83,7 @@ func (fb *FilterBtree) initBtreeByFile() {
 	}
 }
 
-//int64->byte 8  int32->byte 4
+// int64->byte 8  int32->byte 4
 func (fb *FilterBtree) writeFile(item FilterBtreeItem) {
 	var offset int64
 	if fb.save {
@@ -128,6 +128,7 @@ func init() {
 		QUEUE_HOST = FSConfig.StringDefault("queue.Host", "guest:guest@127.0.0.1:5672/flysnow")
 		QUEUE_NAME = FSConfig.StringDefault("queue.Name", "flysnow")
 		QUEUE_EXCHANGE = FSConfig.StringDefault("queue.Exchange", "direct.flysnow")
+		QUEUE_EXCHANGETYPE = FSConfig.StringDefault("queue.ExchangeType", "direct")
 	}
 
 	if FSConfig.IntDefault("filter.Save", 0) == 0 {

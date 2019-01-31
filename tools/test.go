@@ -1,7 +1,7 @@
 package main
 
 import (
-	"flysnow/utils"
+	"github.com/panjjo/flysnow/utils"
 	"fmt"
 	"github.com/panjjo/go-flysnow"
 	"sync"

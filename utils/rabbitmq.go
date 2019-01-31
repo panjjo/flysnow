@@ -1,118 +1,113 @@
 package utils
 
 import (
-	"errors"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
 )
 
-type Queueinfo struct {
-	QueueRoutekey string
-	QueueExchange string
+type amqpChann struct {
+	chann *amqp.Channel
+	conn  *amqp.Connection
 }
 
-var (
-	//Conns    map[string]*amqp.Connection
-	Conns    sync.Map
-	Channels map[string]*amqp.Channel
-	ConnChan chan *amqp.Connection
-	// connectOnce, logOnce *sync.Once
-	StartQueueListen bool
-	QUEUE_HOST       string
-	QUEUE_NAME       string
-	QUEUE_EXCHANGE   string
-)
+var StartQueueListen bool
+var QUEUE_HOST, QUEUE_EXCHANGE, QUEUE_EXCHANGETYPE, QUEUE_NAME string
 
-func InitMQ(host string) {
-	// logOnce = new(sync.Once)     //refresh Once instance
-	// connectOnce = new(sync.Once) //refresh Once instance
-	Channels = make(map[string]*amqp.Channel, 0)
-	ConnChan = make(chan *amqp.Connection)
-	Conns = sync.Map{}
-	// connectOnce.Do(func() {
-	// go connect(Host)
-	// })
-	//Conn = <-ConnChan
-	// go func() {
-	//  for Conn = range ConnChan {
-	//      Channels = make(map[string]*amqp.Channel, 0)
-	//      // dispatch()
-	//      logOnce = new(sync.Once)     //refresh Once instance
-	//      connectOnce = new(sync.Once) //refresh Once instance
-	//      Log.Info("rabbitmq connection back online.")
-	//  }
-	// }()
+var MQDef *Rabbitmq
+
+type Rabbitmq struct {
+	config RabbitmqConfig
+
+	channels *sync.Map
 }
 
-func connect(host string) {
-	ticker := time.Tick(1000 * time.Millisecond)
-	for range ticker {
-		conn, err := amqp.Dial("amqp://" + host)
-		if err == nil {
-			ConnChan <- conn
-			return
-		}
-		go func() {
-			Log.ERROR.Printf("Could not connect to rabbitmq server. Error: %s,Host:%s", err, host)
-		}()
+func InitMQ(config RabbitmqConfig) {
+	MQDef = NewRabbitmq(config)
+}
+
+func NewRabbitmq(config RabbitmqConfig) *Rabbitmq {
+	return &Rabbitmq{
+		config:   config,
+		channels: &sync.Map{},
 	}
 }
 
-func GetChannel(name string, exchange string) (ch *amqp.Channel, err error) {
-	var ok bool
-	if ch, ok = Channels[name]; !ok {
-		if _, ok = Conns.Load(name); !ok {
-			go connect(QUEUE_HOST)
-			Conns.Store(name, <-ConnChan)
-		}
-		c, _ := Conns.Load(name)
-		ch, err = c.(*amqp.Connection).Channel()
+type RabbitmqConfig struct {
+	Addr         string `json:"addr" yaml:"addr" mapstructure:"addr"`
+	Exchange     string `json:"exchange" yaml:"exchange"  mapstructure:"exchange"`
+	ExchangeType string `json:"exchange_type" yaml:"exchange_type" mapstructure:"exchange_type"`
+	Retry        int    `json:"retry" yaml:"retry" mapstructure:"retry"`
+}
+
+func (r *Rabbitmq) amqpConnect() (*amqp.Connection, error) {
+	conn, err := amqp.Dial(r.config.Addr)
+	if err != nil {
+		Log.WARN.Printf("conn amqp fail,host:%s,err:%v", r.config.Addr, err)
+	}
+	return conn, err
+}
+
+func (r *Rabbitmq) amqpChannel(name string) (ch *amqp.Channel, err error) {
+	if ac, ok := r.channels.Load(name); !ok {
+		conn, err := r.amqpConnect()
 		if err != nil {
-			Log.ERROR.Printf("conn.channel err: %v", err)
-			Conns.Delete(name)
-			// connect(Host)
+			return nil, err
+		}
+		ch, err = conn.Channel()
+		if err != nil {
+			Log.WARN.Printf("get amqp channel fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
 			return nil, err
 		}
 		err = ch.Qos(3, 0, false)
 		if err != nil {
-			Log.ERROR.Printf("basic.qos: %v", err)
+			Log.WARN.Printf(" amqp channel qos fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
+			return nil, err
 		}
-
-		err = ch.ExchangeDeclare(exchange, strings.Split(exchange, ".")[0], true, false, false, false, nil)
+		err = ch.ExchangeDeclare(r.config.Exchange, r.config.ExchangeType, true, false, false, false, nil)
 		if err != nil {
-			Log.ERROR.Printf("exchange declare: %v", err)
+			Log.WARN.Printf(" amqp exchange declare fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
+			return nil, err
 		}
-
-		Channels[name] = ch
+		r.channels.Store(name, amqpChann{ch, conn})
+		return ch, err
+	} else {
+		return ac.(amqpChann).chann, nil
 	}
-	return Channels[name], err
 }
 
-func Consume(ch *amqp.Channel, b *Queueinfo, tag string) (<-chan amqp.Delivery, error) {
-	var err error
-	q, err := ch.QueueDeclare(b.QueueRoutekey, true, false, false, false, nil)
+func (r *Rabbitmq) Consume(name, tag, routingKey string) (<-chan amqp.Delivery, error) {
+	ch, err := r.amqpChannel(name)
 	if err != nil {
-		Log.ERROR.Printf("queue declare err: %v", err)
+		Log.WARN.Printf("get amqp channel fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
+		r.channels.Delete(name)
+		return nil, err
+	}
+	q, err := ch.QueueDeclare(routingKey, true, false, false, false, nil)
+	if err != nil {
+		Log.WARN.Printf("amqp queue declare fail,name:%s,routingKey:%s,err:%v", name, routingKey, err)
+		r.channels.Delete(name)
+		return nil, err
 	}
 
-	err = ch.QueueBind(b.QueueRoutekey, b.QueueRoutekey, b.QueueExchange, false, nil)
+	err = ch.QueueBind(routingKey, routingKey, r.config.Exchange, false, nil)
 	if err != nil {
-		Log.ERROR.Printf("queue bind err: %v", err)
+		Log.WARN.Printf("amqp queue bind fail,name:%s,routingKey:%s,err:%v", name, routingKey, err)
+		r.channels.Delete(name)
+		return nil, err
 	}
 
-	tasks, err := ch.Consume(q.Name, tag, false, false, false, false, nil)
-	return tasks, err
+	chann, err := ch.Consume(q.Name, tag, false, false, false, false, nil)
+	if err != nil {
+		r.channels.Delete(name)
+	}
+	return chann, err
 }
 
-func Publish(exchange, key string, t interface{}, n int) error {
-	body := []byte(JsonEncode(t, false))
-	if len(body) == 0 {
-		Log.ERROR.Printf("Send empty msg to Mq :%+v", t)
-		return errors.New("msg error")
-	}
+func (r *Rabbitmq) PublishWithRetry(routingKey string, data interface{}, n int) error {
+	body := JsonEncode(data, false)
+
 	msg := amqp.Publishing{
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
@@ -120,18 +115,21 @@ func Publish(exchange, key string, t interface{}, n int) error {
 		Body:         body,
 	}
 
-	ch, err := GetChannel("publish", exchange)
+	ch, err := r.amqpChannel("publish")
 	if err == nil {
-		err = ch.Publish(exchange, key, false, false, msg)
+		err = ch.Publish(r.config.Exchange, routingKey, false, false, msg)
 		if err != nil {
 			if n > 0 {
-				delete(Channels, "publish")
-				Conns.Delete("publish")
-				Publish(exchange, key, t, n-1)
+				r.channels.Delete("publish")
+				r.PublishWithRetry(routingKey, data, n-1)
 			} else {
-				Log.ERROR.Printf("Send msg to MQ err:%v,%+v", err, t)
+				Log.WARN.Printf("amqp push fail,routingKey:%s,err:%v", routingKey, err)
 			}
+
 		}
 	}
 	return err
+}
+func (r *Rabbitmq) Publish(routingKey string, data interface{}) error {
+	return r.PublishWithRetry(routingKey, data, r.config.Retry)
 }

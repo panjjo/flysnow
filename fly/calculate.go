@@ -1,7 +1,7 @@
 package fly
 
 import (
-	instance "flysnow/tmp"
+	instance "github.com/panjjo/flysnow/tmp"
 	"sync"
 )
 
