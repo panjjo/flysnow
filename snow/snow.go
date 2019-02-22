@@ -1,9 +1,9 @@
 package snow
 
 import (
+	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,18 +17,18 @@ type SnowSys struct {
 	RedisConn *utils.RedisConn
 	Tag, Term string
 	Now       int64
-	SpKey     map[string]string //特殊key处理
+	SpKey     map[string]string // 特殊key处理
 }
 
 var snowlock rwmutex
 
 type rwmutex struct {
-	//m map[string]*sync.RWMutex
+	// m map[string]*sync.RWMutex
 	l *sync.Mutex
 }
 
 func init() {
-	//snowlock = rwmutex{m: map[string]*sync.RWMutex{}}
+	// snowlock = rwmutex{m: map[string]*sync.RWMutex{}}
 	snowlock = rwmutex{l: new(sync.Mutex)}
 }
 
@@ -94,42 +94,42 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 	}
 	defer snowsys.RedisConn.Dos("DEL", snowsys.Key+"_rotate")
 	go func(tb []interface{}) {
-		//开始归档
+		// 开始归档
 		now := snowsys.Now
 		session := utils.MgoSessionDupl(tag)
 		defer session.Close()
-		//tb为redis 数据
-		//把tb 转化成map
+		// tb为redis 数据
+		// 把tb 转化成map
 		dm := map[string]interface{}{}
 		for i := 0; i < len(tb); i = i + 2 {
-			dm[string(tb[i].([]uint8))], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
+			dm[string(tb[i].([]uint8))], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
 		}
 
-		//特殊key处理
+		// 特殊key处理
 		redisSpKey(dm, snowsys)
 
 		mc := session.DB(models.MongoDT + tag).C(term)
 		var data SnowData
-		//存储归档集合的开始时间，用作下一个归档集合的结束时间
+		// 存储归档集合的开始时间，用作下一个归档集合的结束时间
 		var lasttime int64
 		rotatedata := []map[string]interface{}{}
-		//循环归档配置
+		// 循环归档配置
 		for sk, s := range snows {
-			//key = fs_shop_@shopid_xxxx_1_m
+			// key = fs_shop_@shopid_xxxx_1_m
 			key := snowsys.Key + "_" + fmt.Sprintf("%d", s.Interval) + "_" + s.InterValDuration
-			//如果为第一个归档,表示redis 入mongo
+			// 如果为第一个归档,表示redis 入mongo
 			if sk == 0 {
-				//获取第一个归档mongo数据集合
-				//第一归档表示从redis归档到mongo，时间跨度
+				// 获取第一个归档mongo数据集合
+				// 第一归档表示从redis归档到mongo，时间跨度
 				mc.Find(bson.M{"s_key": key}).One(&data)
 
 				// 重置mongo第一个归档数据集合的截止时间,为redis数据的截止时间
 				if data.ETime < dm["e_time"].(int64) {
-					//如果mongo第一归档截止时间小于 redis截止时间 ，正常rotate
+					// 如果mongo第一归档截止时间小于 redis截止时间 ，正常rotate
 					data.ETime = dm["e_time"].(int64)
-					//根据第一归档数据集合的存储时间总长度，计算当前集合的开始时间
+					// 根据第一归档数据集合的存储时间总长度，计算当前集合的开始时间
 					data.STime = utils.DurationMap[s.TimeoutDuration+"l"](data.ETime, s.Timeout)
-					//将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
+					// 将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
 					data.Data = append(data.Data, dm)
 				} else {
 					// 老旧数据rotate 不需要进行时间的替换
@@ -154,80 +154,80 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 
 				// rotatedata 需要进行下次归档的数据，默认为全部数据
 				rotatedata = data.Data
-				//复制当前归档集合开始时间
+				// 复制当前归档集合开始时间
 				lasttime = data.STime
 				// 1. 循环第一归档内所有单位数据，判断是否超过此集合时间限制
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
 						if utils.TInt64(d) >= data.STime {
-							//因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
+							// 因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
 							td = data.Data[k:]
 							rotatedata = data.Data[:k]
 							break
 						}
 					}
 				}
-				//重新复制归档数据集合
+				// 重新复制归档数据集合
 				data.Data = td
 				if data.Key == "" {
-					//如果第一归档数据不存在，进行初始化
+					// 如果第一归档数据不存在，进行初始化
 					data.Index = snowsys.Index
 					data.Key = key
 					data.Tag = tag
 					data.Term = term
 				}
-				//cinfo, err := mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
-				//第一归档数据upsert，确保一定至少有一条，不存在则写入
+				// cinfo, err := mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
+				// 第一归档数据upsert，确保一定至少有一条，不存在则写入
 				mc.Upsert(bson.M{"s_key": key}, data)
 				if len(rotatedata) == 0 {
-					//如果不存在超期数据，结束循环
+					// 如果不存在超期数据，结束循环
 					break
 				}
-				//如果有，继续下一次归档
+				// 如果有，继续下一次归档
 			} else {
 				data = SnowData{}
-				//查询第sk个归档数据集合
+				// 查询第sk个归档数据集合
 				mc.Find(bson.M{"s_key": key}).One(&data)
-				//重置mongo第sk个归档数据集合的截止时间,为上一个归档集合的开始时间
+				// 重置mongo第sk个归档数据集合的截止时间,为上一个归档集合的开始时间
 				data.ETime = lasttime
-				//根据集合的存储时间总长度，计算当前集合的开始时间
+				// 根据集合的存储时间总长度，计算当前集合的开始时间
 				data.STime = utils.DurationMap[s.TimeoutDuration+"l"](data.ETime, s.Timeout)
-				//复制当前归档集合开始时间
+				// 复制当前归档集合开始时间
 				lasttime = data.STime
-				//赋值上一个集合所剩超期需归档数据集合
+				// 赋值上一个集合所剩超期需归档数据集合
 				ttt := rotatedata
 				td := []map[string]interface{}{}
 				rotatedata = data.Data
-				//循环第sk归档内所有单位数据，判断是否超过此集合时间限制
+				// 循环第sk归档内所有单位数据，判断是否超过此集合时间限制
 				for k, v := range data.Data {
 					if d, ok := v["s_time"]; ok {
 						if utils.TInt64(d) >= data.STime {
-							//因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
+							// 因为归档数据所有单位是按照时间先后进行append的，如果找到第一个不超期时间，剩余皆不超期
 							td = data.Data[k:]
 							rotatedata = data.Data[:k]
 							break
 						}
 					}
 				}
-				//循环上个归档集合所遗留的超期集合
+				// 循环上个归档集合所遗留的超期集合
 				for _, v := range ttt {
 					o := false
 					v["e_time"] = utils.DurationMap[s.InterValDuration](utils.TInt64(v["e_time"]), s.Interval)
 					v["s_time"] = utils.DurationMap[s.InterValDuration+"l"](utils.TInt64(v["e_time"]), s.Interval)
 					/*lasttime = utils.TInt64(v["e_time"])*/
 					for k1, v1 := range td {
-						//判断超期集合的元素是否属于当前集合中的一个子项，如果是累加到子项里面
+						// 判断超期集合的元素是否属于当前集合中的一个子项，如果是累加到子项里面
 						if v["s_time"].(int64) >= v1["s_time"].(int64) && v["e_time"].(int64) <= v1["e_time"].(int64) {
 							td[k1] = rotate(v, v1, snowsys.SpKey)
 							o = true
 						}
 					}
 					if !o {
-						//如果不是且被当前归档集合时间包含，在当前集合新增一个子项
+						// 如果不是且被当前归档集合时间包含，在当前集合新增一个子项
 						if v["s_time"].(int64) >= data.STime {
 							td = append(td, v)
 						} else {
-							//放到过期集合，进行下一个归档
+							// 放到过期集合，进行下一个归档
 							rotatedata = append(rotatedata, v)
 						}
 
@@ -261,7 +261,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 	}(tb)
 }
 
-//rds key rotate
+// rds key rotate
 func ClearRedisKey(tag string) {
 	for {
 		now := utils.GetNowSec()
@@ -311,7 +311,7 @@ func ClearRedisKey(tag string) {
 	}
 }
 
-//处理redis的特殊key
+// 处理redis的特殊key
 func redisSpKey(data map[string]interface{}, snow *SnowSys) {
 	commands := []*utils.RdsSendStruct{}
 	for k, _ := range data {
