@@ -1,9 +1,9 @@
 package snow
 
 import (
+	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,7 +47,7 @@ func (s *StatReq) GroupKeyRedis(key string, dm map[string]interface{}) {
 	return
 }
 func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
-	//group 只能是index中的key
+	// group 只能是index中的key
 	if s.IsGroup {
 		for _, k := range s.Group {
 			if v, ok := index[k]; ok {
@@ -58,7 +58,7 @@ func (s *StatReq) GroupKeyMgo(index map[string]interface{}) (id string) {
 	return
 }
 func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
-	//计算每条数据的分组key
+	// 计算每条数据的分组key
 	id = d["@groupkey"].(string)
 	if s.IsSpan {
 		t := utils.TInt64(d["e_time"]) - 1
@@ -68,7 +68,7 @@ func (s *StatReq) GSKey(d map[string]interface{}) (skip bool, id string) {
 			d["s_time"], d["e_time"] = s_time, e_time
 			id += fmt.Sprintf("%d%d", s_time, e_time)
 		} else {
-			//时间条件不满足的，跳过
+			// 时间条件不满足的，跳过
 			skip = true
 		}
 	}
@@ -102,7 +102,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	if len(req.DataQuery) > 0 {
 		query["data"] = bson.M{"$elemMatch": req.DataQuery}
 	}
-	//获取数据
+	// 获取数据
 	rdsconn := utils.NewRedisConn(tag)
 	defer rdsconn.Close()
 	tl := []map[string]interface{}{}
@@ -112,7 +112,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, termConfig.Key) {
 		if tmpkey.Re {
 			rdsk := models.RedisKT + "_" + tag + "_" + tmpkey.Key
-			//get from redis
+			// get from redis
 			keys, err = rdsconn.Dos("KEYS", rdsk)
 			if err != nil {
 				continue
@@ -136,8 +136,8 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			}
 		}
 	}
-	//redis end
-	//mgo start
+	// redis end
+	// mgo start
 	datas := []SnowData{}
 	err = mc.Find(query).All(&datas)
 	if len(datas) > 0 {
@@ -152,21 +152,21 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			}
 		}
 	}
-	//mongo end
-	//group and span
+	// mongo end
+	// group and span
 	groupdata := map[string]map[string]interface{}{}
 	for _, l := range tl {
 		skip, gsk := req.GSKey(l)
 		l["@groupkey"] = gsk
 		if skip {
-			//时间不满足，跳过
+			// 时间不满足，跳过
 			continue
 		}
 		if v, ok := groupdata[gsk]; ok {
-			//相同分组的累加到一起
+			// 相同分组的累加到一起
 			rotate(l, v, termConfig.SpKey)
 		} else {
-			//新的一组
+			// 新的一组
 			groupdata[gsk] = l
 		}
 	}
@@ -174,17 +174,17 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
 	for _, v := range groupdata {
-		//查询条件数据过滤
+		// 查询条件数据过滤
 		if utils.DataFilter(v, req.DataQuery) {
-			//计算总数
+			// 计算总数
 			rotate(v, total, termConfig.SpKey)
-			//处理单项特殊key并加入排序集合
+			// 处理单项特殊key并加入排序集合
 			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
 		}
 	}
-	//spkey,处理合计的特殊key
+	// spkey,处理合计的特殊key
 	total = spkeystat(total, termConfig.SpKey)
-	//按照时间skip的，补充无时间统计的数据
+	// 按照时间skip的，补充无时间统计的数据
 	if req.IsSpan && (req.STime != 0 || len(sortdata) > 0) {
 		emptyIndex := map[string]string{}
 		for _, k := range termConfig.Key {
@@ -223,12 +223,12 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			nums--
 		}
 	}
-	//sort
+	// sort
 	if len(req.Sort) == 2 {
 		sortdata = SortMapList(sortdata, req.Sort[0], req.Sort[1].(bool))
 	}
 	lens := len(sortdata)
-	//limit
+	// limit
 	lm := req.Limit + req.Skip
 	if lm != 0 {
 		start, end := 0, 0

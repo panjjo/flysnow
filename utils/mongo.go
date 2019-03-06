@@ -1,6 +1,8 @@
 package utils
 
-import "gopkg.in/mgo.v2"
+import (
+	"gopkg.in/mgo.v2"
+)
 
 var mongoQuery *mgo.Query
 var MongoSession = map[string]*mgo.Session{}

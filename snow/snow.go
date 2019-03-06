@@ -102,7 +102,11 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 		// 把tb 转化成map
 		dm := map[string]interface{}{}
 		for i := 0; i < len(tb); i = i + 2 {
-			dm[string(tb[i].([]uint8))], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
+			if key := string(tb[i].([]uint8)); key == "s_time" || key == "e_time" {
+				dm[key], _ = strconv.ParseInt(string(tb[i+1].([]uint8)), 10, 64)
+			} else {
+				dm[key], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
+			}
 		}
 
 		// 特殊key处理

@@ -294,7 +294,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 				// op item数量与期望不匹配
 				formatErr("Complex ExecErr: op need ", v.paramnum, "params,but get ", len(f)-1, ".", f)
 			}
-			paramsList = v.child_type
+			paramsList = append(paramsList,v.child_type...)
 			returntype = v.return_type
 		} else {
 			// 基础操作不存在
@@ -352,7 +352,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 					paramsList[1] = fpt
 				} else {
 					if paramsList[1] != fpt {
-						formatErr("Complex ExecErr: params type want", p, "have", fpt, f)
+						formatErr("Complex ExecErr: params type want", paramsList[1], "have", fpt, f)
 					}
 				}
 			} else {
@@ -362,7 +362,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 		} else {
 			if paramsList[k] != fpt {
 				// 数据类型不一致
-				formatErr("Complex ExecErr: params type want", p, "have", fpt, f)
+				formatErr("Complex ExecErr: params type want", paramsList[k], "have", fpt, f)
 			}
 		}
 		tmpparams = append(tmpparams, fkn)

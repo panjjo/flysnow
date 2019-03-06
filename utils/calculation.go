@@ -39,7 +39,7 @@ type ComplexRdsKey struct {
 }
 
 func GetRdsKeyByIndex(d map[string]interface{}, keys []string) []ComplexRdsKey {
-	strs := []ComplexRdsKey{ComplexRdsKey{}}
+	strs := []ComplexRdsKey{{}}
 	data := map[string]interface{}{}
 	for k, v := range d {
 		data["@"+k] = v
