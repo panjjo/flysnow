@@ -1,9 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
-	"fmt"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -23,7 +23,7 @@ func NewRedisConn(tag string) *RedisConn {
 func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, err error) {
 	result, err = r.Con.Do(cmd, args...)
 	if err != nil {
-		Log.Error(err.Error())
+		Log.Error(fmt.Sprintf("RDS DOS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err))
 	}
 	return
 }
@@ -31,7 +31,7 @@ func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, er
 func (r *RedisConn) Sends(cmd string, args ...interface{}) error {
 	err := r.Con.Send(cmd, args...)
 	if err != nil {
-		Log.Error(err.Error())
+		Log.Error(fmt.Sprintf("RDS SENDS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err))
 	}
 	return err
 }
@@ -102,7 +102,6 @@ func RdsBatchCommands(tag string, commands []*RdsSendStruct) {
 	var k string
 	for _, cs := range commands {
 		k = cs.Key
-		fmt.Println(k, cs.Commands)
 		for _, c := range cs.Commands {
 			c.V = append([]interface{}{k}, c.V...)
 			conn.Sends(c.Cmd, c.V...)

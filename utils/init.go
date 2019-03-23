@@ -107,12 +107,12 @@ type LogS struct {
 	*log4go.Logger
 }
 
-func (l LogS) Error(s string) {
+func (l *LogS) Error(s string) {
 	l.ERROR.Print(s)
 	time.Sleep(1 * time.Second)
 	os.Exit(1)
 }
-func (l LogS) NewErr(s string) error {
+func (l *LogS) NewErr(s string) error {
 	return errors.New(s)
 }
 
