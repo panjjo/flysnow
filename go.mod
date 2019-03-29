@@ -14,6 +14,7 @@ require (
 	github.com/kataras/golog v0.0.0-20180321173939-03be10146386 // indirect
 	github.com/klauspost/compress v1.4.1 // indirect
 	github.com/klauspost/cpuid v1.2.0 // indirect
+	github.com/panjf2000/ants v4.0.2+incompatible
 	github.com/panjjo/go-flysnow v0.0.0-20180913105345-b09c4ff2c917
 	github.com/panjjo/log4go v0.0.0-20161217074253-5bde1464d311
 	github.com/ryanuber/columnize v2.1.0+incompatible // indirect

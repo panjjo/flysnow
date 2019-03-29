@@ -58,13 +58,13 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 			// 对于数据造成的同个snow有多条数据，在mongo rotate是进行合并
 			bl = true
 			snowsys.RedisConn.Dos("RENAME", snowsys.Key, snowsys.Key+"_rotate")
-			utils.Log.DEBUG.Printf("start rotate key:%s,rename", snowsys.Key)
+			log.DEBUG.Printf("start rotate key:%s,rename", snowsys.Key)
 			if !snowsys.SnowKey.KeyCheck {
 				// 非全局自检 新增一个key
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-				utils.Log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
+				log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
 			}
 		} else {
 			return
@@ -75,7 +75,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) (bl bool) {
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-		utils.Log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
+		log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
 	}
 	return
 }
@@ -88,19 +88,19 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 	if len(snows) == 0 || !NeedRotate(snowsys, snows[0]) {
 		return
 	}
-	utils.Log.DEBUG.Printf("rotate key:%s", snowsys.Key)
+	log.DEBUG.Printf("rotate key:%s", snowsys.Key)
 	b, _ := snowsys.RedisConn.Dos("HGETALL", snowsys.Key+"_rotate")
 	if b == nil {
-		utils.Log.ERROR.Printf("rotate key:%s end,data is nil", snowsys.Key)
+		log.ERROR.Printf("rotate key:%s end,data is nil", snowsys.Key)
 		return
 	}
 	tb := b.([]interface{})
 	if len(tb) == 0 {
-		utils.Log.ERROR.Printf("rotate key:%s end,data is empty", snowsys.Key)
+		log.ERROR.Printf("rotate key:%s end,data is empty", snowsys.Key)
 		return
 	}
 	defer snowsys.RedisConn.Dos("DEL", snowsys.Key+"_rotate")
-	go func(tb []interface{}) { // 开始归档
+	rotateFunc := func() { // 开始归档
 		now := snowsys.Now
 		session := utils.MgoSessionDupl(tag)
 		defer session.Close()
@@ -133,14 +133,14 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				// 第一归档表示从redis归档到mongo，时间跨度
 				if err := mc.Find(bson.M{"s_key": key}).One(&data); err != nil {
 					if err != mgo.ErrNotFound {
-						utils.Log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
+						log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
 					} else {
-						utils.Log.INFO.Printf("rotate get mgo notfound key:%s", key)
+						log.INFO.Printf("rotate get mgo notfound key:%s", key)
 					}
 				}
 
 				// 重置mongo第一个归档数据集合的截止时间,为redis数据的截止时间
-				utils.Log.DEBUG.Printf("rotate rds->mgo,key:%s,data:%+v,ms:%d,me:%d", key, dm, data.STime, data.ETime)
+				log.DEBUG.Printf("rotate rds->mgo,key:%s,data:%+v,ms:%d,me:%d", key, dm, data.STime, data.ETime)
 				if data.ETime < dm["e_time"].(int64) {
 					// 如果mongo第一归档截止时间小于 redis截止时间 ，正常rotate
 					data.ETime = dm["e_time"].(int64)
@@ -148,7 +148,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 					data.STime = utils.DurationMap[s.TimeoutDuration+"l"](data.ETime, s.Timeout)
 					// 将最新redis数据 append到第一归档数据集合-默认redis数据的时间间隔为第一归档数据集合单位数据的时间跨度
 					data.Data = append(data.Data, dm)
-					utils.Log.DEBUG.Printf("rotate key:%s,append", key)
+					log.DEBUG.Printf("rotate key:%s,append", key)
 				} else {
 					// 老旧数据rotate 不需要进行时间的替换
 					// 老旧数据 循环 第一归档数据集合 进行判断是否需要数据合并
@@ -157,14 +157,14 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 							// 单位数据时间与新数据时间一致
 							// 进行合并 ，应该本就是一天数据，无需进行spkey处理
 							data.Data[i] = rotate(d, dm, map[string]string{})
-							utils.Log.DEBUG.Printf("rotate key:%s,merge", key)
+							log.DEBUG.Printf("rotate key:%s,merge", key)
 							break
 						} else if d["e_time"].(int64) > dm["e_time"].(int64) {
 							// 单位数据时间大于新数据时间，表示需要将新数据插入到此数据位置
 							f := append([]map[string]interface{}{}, data.Data[:i]...)
 							s := append([]map[string]interface{}{}, data.Data[i:]...)
 							data.Data = append(append(f, dm), s...)
-							utils.Log.DEBUG.Printf("rotate key:%s,insert", key)
+							log.DEBUG.Printf("rotate key:%s,insert", key)
 							break
 						}
 					}
@@ -199,7 +199,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				// cinfo, err := mc.Upsert(bson.M{"s_key": key}, bson.M{"$set": bson.M{"s_time": data.STime, "e_time": data.ETime, "tag": tag, "term": term, "data": td, "index": snowsys.Index}})
 				// 第一归档数据upsert，确保一定至少有一条，不存在则写入
 				if _, err := mc.Upsert(bson.M{"s_key": key}, data); err != nil {
-					utils.Log.ERROR.Printf("save mgo key:%s,err:%v", key, err)
+					log.ERROR.Printf("save mgo key:%s,err:%v", key, err)
 				}
 				if len(rotatedata) == 0 {
 					// 如果不存在超期数据，结束循环
@@ -211,9 +211,9 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				// 查询第sk个归档数据集合
 				if err := mc.Find(bson.M{"s_key": key}).One(&data); err != nil {
 					if err != mgo.ErrNotFound {
-						utils.Log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
+						log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
 					} else {
-						utils.Log.INFO.Printf("rotate get mgo notfound key:%s", key)
+						log.INFO.Printf("rotate get mgo notfound key:%s", key)
 					}
 				}
 				// 重置mongo第sk个归档数据集合的截止时间,为上一个归档集合的开始时间
@@ -258,10 +258,9 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 							// 放到过期集合，进行下一个归档
 							rotatedata = append(rotatedata, v)
 						}
-
 					}
 				}
-				utils.Log.DEBUG.Printf("save mgo key:%s,s:%d,e:%d", key, data.STime, data.ETime)
+				log.DEBUG.Printf("save mgo key:%s,s:%d,e:%d", key, data.STime, data.ETime)
 				if _, err := mc.Upsert(bson.M{"s_key": key},
 					bson.M{"$set":
 					bson.M{
@@ -271,7 +270,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 						"term":   term,
 						"data":   td,
 						"index":  snowsys.Index}}); err != nil {
-					utils.Log.ERROR.Printf("save mgo key:%s,err:%v", key, err)
+					log.ERROR.Printf("save mgo key:%s,err:%v", key, err)
 				}
 				if len(rotatedata) == 0 {
 					break
@@ -279,7 +278,7 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 			}
 		}
 		if len(rotatedata) > 0 {
-			utils.Log.ERROR.Printf("rotate last snow. term:%s-%s,key:%s,data:%v", snowsys.Tag, snowsys.Term, snowsys.SnowKey.Key, rotatedata)
+			log.ERROR.Printf("rotate last snow. term:%s-%s,key:%s,data:%v", snowsys.Tag, snowsys.Term, snowsys.SnowKey.Key, rotatedata)
 			tmp := bson.M{}
 			for _, v := range rotatedata {
 				for k1, v1 := range v {
@@ -297,26 +296,47 @@ func Rotate(snowsys *SnowSys, snows []models.Snow) {
 				"e_time": now, "tag": tag, "term": term, "index": snowsys.Index}})
 
 		}
-	}(tb)
+	}
+	if err := rotatePool.Submit(rotateFunc); err != nil {
+		log.Error(fmt.Sprintf("rotate pool submit task err:%v", err))
+	}
 }
 
 // rds key rotate
 func ClearRedisKey(tag string) {
+	var result interface{}
+	var startCurr, curr string
+	var data []interface{}
+	var keys []interface{}
+	var rdsconn *utils.RedisConn
+	var index map[string]interface{}
+	startCurr = "0"
+	var tk string
+	var tl, ks []string
 	for {
 		now := utils.GetNowSec()
-		if utils.Sec2Str("15", now) == "04" {
-			utils.Log.INFO.Println("Do rds'key rollback", utils.Sec2Str("2006-01-02 15:04", now))
-			rdsconn := utils.NewRedisConn(tag)
+		if utils.Sec2Str("15", now) == "08" {
+			log.INFO.Println("Do rds'key rollback", utils.Sec2Str("2006-01-02 15:04", now))
+			rdsconn = utils.NewRedisConn(tag)
 			defer rdsconn.Close()
-
-			keys, err := rdsconn.Dos("KEYS", "fs_*")
-			if err != nil {
-				continue
+			curr = startCurr
+			keys = []interface{}{}
+			for {
+				result, _ = rdsconn.Dos("SCAN", curr)
+				data = result.([]interface{})
+				if len(data) != 2 {
+					break
+				}
+				curr = fmt.Sprintf("%s", data[0].([]uint8))
+				if v, ok := data[1].([]interface{}); ok {
+					keys = append(keys, v...)
+				}
+				if curr == startCurr {
+					break
+				}
 			}
-			var index map[string]interface{}
-			var ks, tl []string
-			var tk string
-			for _, k := range keys.([]interface{}) {
+			log.INFO.Println("wait rotate keys len:", len(keys))
+			for i, k := range keys {
 				tk = string(k.([]byte))
 				tl = strings.Split(tk, "_")
 				tag = tl[1]
@@ -329,9 +349,9 @@ func ClearRedisKey(tag string) {
 						i += 1
 					}
 				}
-				utils.Log.DEBUG.Printf("auto rotate key:%s,tag:%s", tk, tag)
+				log.DEBUG.Printf("auto rotate index:%d, key:%s,tag:%s", i, tk, tag)
 				for term, config := range models.TermConfigMap[tag] {
-					fmt.Println(config.Key, ks)
+					fmt.Println(strings.Join(config.Key, "_") ,strings.Join(ks, "_") )
 					if strings.Join(config.Key, "_") == strings.Join(ks, "_") {
 						newSnow := &SnowSys{
 							&utils.SnowKey{
@@ -349,6 +369,9 @@ func ClearRedisKey(tag string) {
 					}
 				}
 			}
+			result = nil
+			data = nil
+			keys = nil
 		}
 		time.Sleep(1 * time.Hour)
 	}

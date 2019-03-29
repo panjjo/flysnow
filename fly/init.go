@@ -2,6 +2,7 @@ package fly
 
 import (
 	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/snow"
 	"github.com/panjjo/flysnow/utils"
 	"github.com/streadway/amqp"
 	"runtime"
@@ -18,6 +19,7 @@ type ListenChanFunc interface {
 }
 
 func Init() {
+	snow.Init()
 	log = utils.Log
 	runtime.GOMAXPROCS(runtime.NumCPU())
 

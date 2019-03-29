@@ -49,7 +49,7 @@ func (s *ConnMapStruct) Remove(key string) bool {
 
 type ConnStruct struct {
 	conn   net.Conn
-	reader chan []byte
+	// reader chan []byte
 	connid string
 }
 type connResp struct {
@@ -111,12 +111,8 @@ func StartServer() {
 			continue
 		}
 
-		//声明一个管道用于接收解包的数据
-		readerChannel := make(chan []byte, 16)
-
 		expconn := &ConnStruct{
 			conn:   conn,
-			reader: readerChannel,
 			connid: connid,
 		}
 		ConnMaps.Put(connid, expconn)
@@ -143,19 +139,10 @@ func handleConnection(expconn *ConnStruct) {
 	}
 }
 
-func reader(conn *ConnStruct) {
-	for {
-		select {
-		case _ = <-conn.reader:
-			conn.conn.Write([]byte("a"))
-		}
-	}
-}
 
 const (
 	startId = "^"
 	endId   = "$"
-	//typeLength = 4
 	opLength   = 4
 	tagLength  = 4
 	bodyLength = 4

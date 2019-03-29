@@ -239,6 +239,8 @@ github.com/nzlov/gin-swagger v1.0.1 h1:onByizztImPYSVt/J0K4SQGk6rt5eEIk0SlShZyF/
 github.com/nzlov/gin-swagger v1.0.1/go.mod h1:nQiQDR797xBJa08lzdohQqEE8+VZZZflSaNLl/N2+Fs=
 github.com/nzlov/jpush-api-go-client v0.0.0-20181207110257-7cdae6a5560f/go.mod h1:Xx5WfOPfxInm4l0A7sQfe28b35O/2Pe+Amt3OYNhWsM=
 github.com/opentracing/opentracing-go v1.0.3-0.20181012221231-be550b025b43/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
+github.com/panjf2000/ants v4.0.2+incompatible h1:6K9b4YyUmbTvfxGm2YZgmDgIiCEyP1x+gewN+tBr/8U=
+github.com/panjf2000/ants v4.0.2+incompatible/go.mod h1:AaACblRPzq35m1g3enqYcxspbbiOJJYaxU2wMpm1cXY=
 github.com/panjjo/fdfs_client v0.0.0-20181117121657-4ad9ba43bacf/go.mod h1:cQHbd4SW2UtLsZmxgGXgFqsdaY40Yd/5ncsX3nrV87U=
 github.com/panjjo/go-config v0.0.0-20161221052437-9f16f7c197bc/go.mod h1:/9K3P1JgkWR8NiAYgcFfOrCUywXprC1h+BmIsZY+wo0=
 github.com/panjjo/go-flysnow v0.0.0-20180913105345-b09c4ff2c917 h1:R8sFyv1TJn3jvLDyqMqFk7CHhfO9D8SQaOQ5vo4JfYY=

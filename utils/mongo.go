@@ -18,7 +18,7 @@ func MgoInit(tag string) {
 	MongoSession[tag], err = mgo.Dial(h)
 	if err != nil {
 		// Only warn since we'll retry later for each request
-		Log.ERROR.Print("Could not connect to Mongo DB. Error: %s", err)
+		Log.ERROR.Printf("Could not connect to Mongo DB. Error: %s", err)
 	}
 }
 
