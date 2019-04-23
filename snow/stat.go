@@ -154,7 +154,8 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	// mongo end
 	// group and span
-	groupdata := map[string]map[string]interface{}{}
+	groupdata := map[string]int{}
+	data:=[]map[string]interface{}{}
 	for _, l := range tl {
 		skip, gsk := req.GSKey(l)
 		l["@groupkey"] = gsk
@@ -164,16 +165,17 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 		if v, ok := groupdata[gsk]; ok {
 			// 相同分组的累加到一起
-			rotate(l, v, termConfig.SpKey)
+			rotate(l, data[v], termConfig.SpKey)
 		} else {
 			// 新的一组
-			groupdata[gsk] = l
+			data=append(data,l)
+			groupdata[gsk] = len(data)-1
 		}
 	}
 
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
-	for _, v := range groupdata {
+	for _, v := range data {
 		// 查询条件数据过滤
 		if utils.DataFilter(v, req.DataQuery) {
 			// 计算总数
