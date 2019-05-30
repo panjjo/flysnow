@@ -32,9 +32,8 @@ steps:
 
 trigger:
   branch:
-    - test
-    - release_*
-    - build.*
+    - shanshou
+    - suyang
 
 volumes:
   - name: cache
