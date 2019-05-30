@@ -2,7 +2,7 @@ nd: pipeline
 name: default
 workspace:
   base: /go
-  path: src/gogs.yunss.com/shanshou/flysnow
+  path: src/gogs.yunss.com/go/flysnow
 
 steps:
   - name: build
