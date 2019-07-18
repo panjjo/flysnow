@@ -27,6 +27,4 @@ func (s *Clear) reader(d *BodyData) {
 	log.DEBUG.Printf("response connid:%s, op:%d,tag:%s,data:%v", d.Connid, d.Op, d.Tag, result)
 	ConnRespChannel <- &connResp{d.Connid, result, err}
 }
-func ClearRedisKey(tag string) {
-	snow.ClearRedisKey(tag)
-}
+

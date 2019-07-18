@@ -3,6 +3,7 @@ package utils
 import (
 	// 	"code.google.com/p/log4go"
 	"errors"
+	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils/btree"
 	"os"
 	"sync"
@@ -121,6 +122,11 @@ func init() {
 	FSConfig = Config{}
 	FSConfig.InitConfig(PWD + "/config/base.conf")
 	FSConfig.SetMod("sys")
+	if tag := FSConfig.String("tag"); tag != "" {
+		models.MongoDT = tag
+		models.RedisKT = tag
+
+	}
 	Log = LogS{log4go.NewLogger(FSConfig.StringDefault("logger.level", "info"))}
 
 	if FSConfig.IntDefault("queue", 0) == 1 {

@@ -12,14 +12,14 @@ func (t *{{termname}}) Exec(s interface{}) {
 
 	if len(commands.Commands) > 0 {
 
-		key := utils.GetKey(*d.req, t.Config.Key)
-		key.Key = models.RedisKT + "_" + d.Tag + "_" + key.Key
-		commands.Key = key.Key
+		key := utils.GetKeyByObj(t.Config.Key, *d.req)
+		key = models.RedisKT + "_" + d.Tag + "_" + key
+		commands.Key = key
 		now := utils.GetNowSec()
-		if (t.rotateatkey != key.Key) || t.rotateat < now {
-			snow.Rotate(&snow.SnowSys{key, nil, d.Tag, "{{term}}", d.req.STime,t.Config.SpKey}, t.Config.Snow)
+		if (t.rotateatkey != key) || t.rotateat < now {
+			snow.NeedRotate(&snow.SnowSys{&utils.SnowKey{Key:key}, nil, d.Tag, "{{term}}", d.req.STime,t.Config.SpKey}, t.Config.Snow[0])
 			t.rotateat = now
-      t.rotateatkey = key.Key
+            t.rotateatkey = key
 		}
 		d.AddCommods(&commands)
 	}
