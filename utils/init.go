@@ -125,7 +125,6 @@ func init() {
 	if tag := FSConfig.String("tag"); tag != "" {
 		models.MongoDT = tag
 		models.RedisKT = tag
-
 	}
 	Log = LogS{log4go.NewLogger(FSConfig.StringDefault("logger.level", "info"))}
 

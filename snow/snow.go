@@ -1,6 +1,8 @@
 package snow
 
 import (
+	"fmt"
+	"github.com/garyburd/redigo/redis"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
 	"gopkg.in/mgo.v2/bson"
@@ -38,11 +40,54 @@ type SnowData struct {
 	Query bson.M `bson:"-"`
 }
 
+var HyperLogLogList []string
+var lastHyperLogLog string
+
+// 每一个小时生成一个hyperloglog 最多保留5个hyperloglog ,新生成的那个merge前两个小时的数据
+func newHyperLogLog() {
+	conn := utils.NewRedisConn(models.TagList[0])
+	defer conn.Close()
+	key := "hyperloglog_" + utils.RandomTimeString()
+	conn.Dos("PFADD", key)
+	conn.Dos("EXPIRE", key, 5*60*60)
+	lastHyperLogLog = key
+	switch len(HyperLogLogList) {
+	case 1:
+		conn.Dos("PFMERGE", key, HyperLogLogList[0])
+	case 2:
+		conn.Dos("PFMERGE", key, HyperLogLogList[0], HyperLogLogList[1])
+	case 3:
+		conn.Dos("PFMERGE", key, HyperLogLogList[1], HyperLogLogList[2])
+		HyperLogLogList = HyperLogLogList[1:]
+	}
+	HyperLogLogList = append(HyperLogLogList, key)
+
+}
+
+func CheckNeedRotate(key string, t int64, snow models.Snow) bool {
+	endtime := utils.DurationMap[snow.InterValDuration](t, snow.Interval)
+	hllkey := fmt.Sprint(key, endtime)
+	c := utils.NewRedisConn(models.TagList[0])
+	defer c.Close()
+	result, err := c.Dos("PFADD", lastHyperLogLog, hllkey)
+	if err != nil || result == nil {
+		// 失败，返回true 需要check
+		return true
+	}
+	if i, e := redis.Int(result, err); i == 0 && e == nil {
+		return false
+	}
+	return true
+}
 
 func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 
 	snowlock.l.Lock()
 	defer snowlock.l.Unlock()
+	if snowsys.RedisConn == nil {
+		snowsys.RedisConn = utils.NewRedisConn(snowsys.Tag)
+		defer snowsys.RedisConn.Close()
+	}
 
 	now := snowsys.Now
 	b, _ := snowsys.RedisConn.Dos("HGET", snowsys.Key, "e_time")
@@ -53,11 +98,14 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 			// 旧数据rotate  新来数据时间<= redis的开始时间 讲现有数据rotate ,生成老数据对应的redis数据
 			// 对于数据造成的同个snow有多条数据，在mongo rotate是进行合并
 			rotateKey := "rotate_" + utils.RandomTimeString()
-			snowsys.RedisConn.Dos("RENAME", snowsys.Key, rotateKey)
+			_, err := snowsys.RedisConn.Dos("RENAME", snowsys.Key, rotateKey)
+			if err != nil {
+				log.ERROR.Printf("rotate rename fail,%s->%s,err:%v", snowsys.Key, rotateKey, err)
+			}
 			snowsys.RedisConn.Dos("HMSET", rotateKey, "key", snowsys.Key, "tag", snowsys.Tag, "term", snowsys.Term)
 			// redis 队列存储需要归档的key，队列为左入
 			snowsys.RedisConn.Dos("LPUSH", ROTATEKEYS, rotateKey)
-			log.DEBUG.Printf("start rotate key:%s,rename", snowsys.Key)
+			log.DEBUG.Printf("need rotate key:%s,rename:%s", snowsys.Key, rotateKey)
 			if !snowsys.SnowKey.KeyCheck {
 				// 非全局自检 新增一个key
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
@@ -79,10 +127,6 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 	return
 }
 
-
-
-
-
 // 处理redis的特殊key
 func redisSpKey(data map[string]interface{}, snow *SnowSys) {
 	commands := []*utils.RdsSendStruct{}
@@ -97,5 +141,3 @@ func redisSpKey(data map[string]interface{}, snow *SnowSys) {
 		utils.RdsBatchCommands(snow.Tag, commands)
 	}
 }
-
-

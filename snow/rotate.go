@@ -98,12 +98,18 @@ func lsrRotate() {
 }
 
 func rotate() {
-	defer func() { haveRotatePro = false }()
+	redisConn := utils.NewRedisConn(models.TagList[0])
+	defer func() {
+		haveRotatePro = false
+		redisConn.Close()
+		log.INFO.Print("stop rotate process")
+	}()
 	haveRotatePro = true
-	redisConn := utils.NewRedisConn("sys")
+	log.INFO.Print("start rotate process")
 	var result interface{}
 	var err error
 	var b interface{}
+	var sourceKey string
 	for {
 		// 取出集合中的待归档key，从右侧取出（左入右出）
 		result, err = redisConn.Dos("RPOP", ROTATEKEYS)
@@ -113,21 +119,24 @@ func rotate() {
 		}
 		if result == nil {
 			time.Sleep(1 * time.Second)
+			continue
 		}
-		b, _ = redisConn.Dos("HGETALL", result.(string))
+		sourceKey = string(result.([]uint8))
+		b, _ = redisConn.Dos("HGETALL", sourceKey)
 		if b == nil {
-			log.ERROR.Printf("rotate key:%s,data is nil", result.(string))
-			break
+			log.ERROR.Printf("rotate key:%s,data is nil", sourceKey)
+			continue
 		}
 		tb := b.([]interface{})
 		if len(tb) == 0 {
-			log.ERROR.Printf("rotate key:%s end,data is empty", result.(string))
-			break
+			log.ERROR.Printf("rotate key:%s end,data is empty", sourceKey)
+			continue
 		}
-		rotateDo(tb, result.(string))
+		rotateDo(tb, sourceKey)
 	}
 }
 func rotateDo(tb []interface{}, sourceKey string) {
+
 	rotateFunc := func() { // 开始归档
 		var datakey, tag, term, key string
 		dm := map[string]interface{}{}
@@ -146,6 +155,7 @@ func rotateDo(tb []interface{}, sourceKey string) {
 				dm[datakey], _ = strconv.ParseFloat(string(tb[i+1].([]uint8)), 64)
 			}
 		}
+		log.DEBUG.Printf("start rotate ,sourcekey %s,key:%s,tag:%s,term:%s", sourceKey, key, tag, term)
 		snowCfg := models.TermConfigMap[tag][term]
 		snowsys := &SnowSys{
 			&utils.SnowKey{
@@ -159,6 +169,7 @@ func rotateDo(tb []interface{}, sourceKey string) {
 		}
 		defer func() {
 			snowsys.RedisConn.Dos("DEL", sourceKey)
+			snowsys.RedisConn.Close()
 		}()
 
 		session := utils.MgoSessionDupl(tag)
@@ -186,7 +197,7 @@ func rotateDo(tb []interface{}, sourceKey string) {
 					if err != mgo.ErrNotFound {
 						log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
 					} else {
-						log.INFO.Printf("rotate get mgo notfound key:%s", key)
+						log.DEBUG.Printf("rotate get mgo notfound key:%s", key)
 					}
 				}
 
