@@ -5,7 +5,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
-	"gopkg.in/mgo.v2/bson"
 	"strconv"
 	"sync"
 )
@@ -27,17 +26,6 @@ type rwmutex struct {
 
 func init() {
 	snowlock = rwmutex{l: new(sync.Mutex)}
-}
-
-type SnowData struct {
-	Key   string                   `json:"s_key" bson:"s_key"`
-	STime int64                    `json:"s_time" bson:"s_time"`
-	ETime int64                    `json:"e_time" bson:"e_time"`
-	Data  []map[string]interface{} `json:"data" bson:"data"`
-	Index map[string]interface{}
-	Term  string
-	Tag   string
-	Query bson.M `bson:"-"`
 }
 
 var HyperLogLogList []string
