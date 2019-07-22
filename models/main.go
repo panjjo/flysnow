@@ -36,11 +36,11 @@ func ErrNew(s string) error {
 }
 
 const (
-	ErrOpId           = 1001 //数据opid错误
-	ErrMethodNotFount = 1002 //Tag不存在
-	ErrTimeOut        = 1003 //堵塞
-	ErrData           = 2001 //数据格式错误
-	ErrClear          = 2002 //清理失败
+	ErrOpId           = 1001 // 数据opid错误
+	ErrMethodNotFount = 1002 // Tag不存在
+	ErrTimeOut        = 1003 // 堵塞
+	ErrData           = 2001 // 数据格式错误
+	ErrClear          = 2002 // 清理失败
 )
 
 var ErrMsgMap = map[int]string{
@@ -59,11 +59,8 @@ var SpKeyMap = map[string]string{
 	SPKEYLAST: "时间段内保留最后一个值",
 	SPKEYAVG:  "时间段内平均值",
 }
-
-const (
-	MongoDT = "FS"
-	RedisKT = "fs"
-)
+var MongoDT = "FS"
+var RedisKT = "fs"
 
 type LISTKV []struct {
 	Key   interface{} `json:"key"`

@@ -60,7 +60,7 @@ func (r *Rabbitmq) amqpChannel(name string) (ch *amqp.Channel, err error) {
 			Log.WARN.Printf("get amqp channel fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
 			return nil, err
 		}
-		err = ch.Qos(3, 0, false)
+		err = ch.Qos(10, 0, false)
 		if err != nil {
 			Log.WARN.Printf(" amqp channel qos fail,name:%s,host:%s,err:%v", name, r.config.Addr, err)
 			return nil, err

@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
-	"fmt"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
@@ -17,6 +17,7 @@ var S_Expmap = map[string]sExpStruct{
 	"||": sExpStruct{-1, "bool", []string{"eq", "bool"}, " || "},
 	"!=": sExpStruct{2, "bool", []string{"eq", "interface"}, " != "},
 	"+":  sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},
+	"-":  sExpStruct{-1, "float64", []string{"eq", "float64"}, " - "},
 	/*"last": sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},
 	"avg":  sExpStruct{-1, "float64", []string{"eq", "float64"}, " + "},*/
 	/*"-":  sExpStruct{-1, "float64", "eq", " - "},*/
@@ -204,7 +205,7 @@ func complexTermDo(f []interface{}) string {
 		formatErr("Complex ExecErr: op not found", f)
 	}
 	switch car {
-	case "+", "avg", "last":
+	case "+", "avg", "last","-":
 	default:
 		formatErr("Complex ExecErr: op not found", f)
 	}
@@ -243,11 +244,12 @@ func complexTermDo(f []interface{}) string {
 		spkey := termConfigMap[datastruct.name][datastruct.termname]
 		spkey.SpKey[first] = car
 		termConfigMap[datastruct.name][datastruct.termname] = spkey
-
+		car = "+"
 	}
 
 	// 从除op外第二个参数开始都可以当做是+的元素处理
-	str, returntype := complexTerm(append([]interface{}{"+"}, f[2:]...))
+
+	str, returntype := complexTerm(append([]interface{}{car}, f[2:]...))
 	if returntype == "float64" {
 		tvl = str
 	} else {
@@ -294,7 +296,7 @@ func complexTerm(f []interface{}) (str string, return_type string) {
 				// op item数量与期望不匹配
 				formatErr("Complex ExecErr: op need ", v.paramnum, "params,but get ", len(f)-1, ".", f)
 			}
-			paramsList = append(paramsList,v.child_type...)
+			paramsList = append(paramsList, v.child_type...)
 			returntype = v.return_type
 		} else {
 			// 基础操作不存在

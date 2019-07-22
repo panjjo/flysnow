@@ -100,13 +100,14 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 	}
 	if len(req.DataQuery) > 0 {
+		req.DataQuery["s_time"] = bson.M{"$gte": req.STime}
+		req.DataQuery["e_time"] = bson.M{"$lte": req.ETime}
 		query["data"] = bson.M{"$elemMatch": req.DataQuery}
 	}
 	// 获取数据
 	rdsconn := utils.NewRedisConn(tag)
 	defer rdsconn.Close()
 	tl := []map[string]interface{}{}
-
 	var keys interface{}
 	termConfig := models.TermConfigMap[tag][req.Term]
 	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, termConfig.Key) {
@@ -140,6 +141,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	// mgo start
 	datas := []SnowData{}
 	err = mc.Find(query).All(&datas)
+	mgoList := []map[string]interface{}{}
 	if len(datas) > 0 {
 		for _, data := range datas {
 			groupkey := req.GroupKeyMgo(data.Index)
@@ -147,15 +149,16 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				if utils.TInt64(v["s_time"]) >= req.STime && (utils.TInt64(v["e_time"]) <= req.ETime || req.ETime == 0) {
 					v["@groupkey"] = groupkey
 					v["@index"] = data.Index
-					tl = append(tl, v)
+					mgoList = append(mgoList, v)
 				}
 			}
 		}
 	}
+	tl = append(mgoList, tl...)
 	// mongo end
 	// group and span
 	groupdata := map[string]int{}
-	data:=[]map[string]interface{}{}
+	data := []map[string]interface{}{}
 	for _, l := range tl {
 		skip, gsk := req.GSKey(l)
 		l["@groupkey"] = gsk
@@ -165,11 +168,11 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 		if v, ok := groupdata[gsk]; ok {
 			// 相同分组的累加到一起
-			rotate(l, data[v], termConfig.SpKey)
+			rotateObj(l, data[v], termConfig.SpKey)
 		} else {
 			// 新的一组
-			data=append(data,l)
-			groupdata[gsk] = len(data)-1
+			data = append(data, l)
+			groupdata[gsk] = len(data) - 1
 		}
 	}
 
@@ -179,7 +182,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		// 查询条件数据过滤
 		if utils.DataFilter(v, req.DataQuery) {
 			// 计算总数
-			rotate(v, total, termConfig.SpKey)
+			rotateObj(v, total, termConfig.SpKey)
 			// 处理单项特殊key并加入排序集合
 			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
 		}

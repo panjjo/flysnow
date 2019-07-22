@@ -19,7 +19,7 @@ type ListenChanFunc interface {
 }
 
 func Init() {
-	snow.Init()
+
 	log = utils.Log
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -45,12 +45,9 @@ func Init() {
 		utils.InitRedis(tag)
 		utils.MgoInit(tag)
 	}
-	// 每天处理一次 rds key
-	go ClearRedisKey(models.TagList[0])
-
 	ConnRespChannel = make(chan *connResp, 100)
-
-	// 启动redis 监听
+	snow.Init()
+	// 启动rabbitmq 监听
 	if utils.StartQueueListen {
 		utils.InitMQ(utils.RabbitmqConfig{Addr: utils.QUEUE_HOST, Exchange: utils.QUEUE_EXCHANGE, ExchangeType: utils.QUEUE_EXCHANGETYPE})
 		go func() {

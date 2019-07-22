@@ -269,6 +269,8 @@ github.com/revel/config v0.21.0/go.mod h1:GT4a9px5kDGRqLizcw/md0QFErrhen76toz4qS
 github.com/revel/log15 v2.11.20+incompatible/go.mod h1:l0WmLRs+IM1hBl4noJiBc2tZQiOgZyXzS1mdmFt+5Gc=
 github.com/revel/pathtree v0.0.0-20140121041023-41257a1839e9/go.mod h1:TmlwoRLDvgRjoTe6rbsxIaka/CulzYrgfef7iNJcEWY=
 github.com/revel/revel v0.21.0/go.mod h1:VZWJnHjpDEtuGUuZJ2NO42XryitrtwsdVaJxfDeo5yc=
+github.com/robfig/cron v1.2.0 h1:ZjScXvvxeQ63Dbyxy76Fj3AT3Ut0aKsyd2/tl3DTMuQ=
+github.com/robfig/cron v1.2.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
 github.com/rs/zerolog v1.10.3/go.mod h1:YbFCdg8HfsridGWAh22vktObvhZbQsZXe4/zB0OKkWU=
 github.com/ryanuber/columnize v2.1.0+incompatible h1:j1Wcmh8OrK4Q7GXY+V7SVSY8nUWQxHW5TkBe7YUl+2s=
 github.com/ryanuber/columnize v2.1.0+incompatible/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
