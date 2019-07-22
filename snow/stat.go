@@ -168,7 +168,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		}
 		if v, ok := groupdata[gsk]; ok {
 			// 相同分组的累加到一起
-			rotate(l, data[v], termConfig.SpKey)
+			rotateObj(l, data[v], termConfig.SpKey)
 		} else {
 			// 新的一组
 			data = append(data, l)
@@ -182,7 +182,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		// 查询条件数据过滤
 		if utils.DataFilter(v, req.DataQuery) {
 			// 计算总数
-			rotate(v, total, termConfig.SpKey)
+			rotateObj(v, total, termConfig.SpKey)
 			// 处理单项特殊key并加入排序集合
 			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
 		}

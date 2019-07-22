@@ -11,8 +11,43 @@ type SnowKey struct {
 	KeyCheck bool
 }
 
-func GetKey(obj interface{}, keys []string) *SnowKey {
-	result := &SnowKey{Index: map[string]interface{}{}}
+func GetIndexByMap(keys []string, data map[string]interface{}) map[string]interface{} {
+	result := map[string]interface{}{}
+	for _, key := range keys {
+		if v, ok := data[key]; ok {
+			result[key] = v
+		}
+	}
+	return result
+}
+func GetKeyByMap(keys []string, data map[string]interface{}) string {
+	strs := []string{}
+	for _, key := range keys {
+		if v, ok := data[key]; ok {
+			strs = append(strs, "@"+key+"_"+strings.Replace(v.(string), "_", ".", -1))
+		} else {
+			strs = append(strs, key)
+		}
+	}
+	return strings.Join(strs, "_")
+}
+
+func GetKeyAndIndexByMap(keys []string, data map[string]interface{}) (string, map[string]interface{}) {
+	result := map[string]interface{}{}
+	strs := []string{}
+	for _, key := range keys {
+		if v, ok := data[key]; ok {
+			strs = append(strs, "@"+key+"_"+strings.Replace(v.(string), "_", ".", -1))
+			result[key] = v
+		} else {
+			strs = append(strs, key)
+		}
+	}
+	return strings.Join(strs, "_"), result
+
+}
+
+func GetKeyByObj(keys []string, obj interface{}) string {
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
 	data := map[string]string{}
@@ -23,13 +58,11 @@ func GetKey(obj interface{}, keys []string) *SnowKey {
 	for _, key := range keys {
 		if v, ok := data[key]; ok {
 			strs = append(strs, key+"_"+strings.Replace(v, "_", ".", -1))
-			result.Index[key[1:]] = v
 		} else {
 			strs = append(strs, key)
 		}
 	}
-	result.Key = strings.Join(strs, "_")
-	return result
+	return strings.Join(strs, "_")
 }
 
 type ComplexRdsKey struct {
@@ -113,7 +146,7 @@ func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool
 					for kk, tv := range n {
 						vv := TFloat64(tv)
 						switch kk {
-						case "$gt": //>
+						case "$gt": // >
 							if vv >= TFloat64(value) {
 								return false
 							}
