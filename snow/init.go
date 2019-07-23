@@ -23,6 +23,7 @@ func Init() {
 	cron.AddFunc("@every 1h", newHyperLogLog)
 	HyperLogLogList = []string{}
 	newHyperLogLog()
+	lsrRotate()
 	cron.Start()
 }
 
