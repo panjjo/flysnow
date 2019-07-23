@@ -117,7 +117,7 @@ func (l *LogS) NewErr(s string) error {
 	return errors.New(s)
 }
 
-func init() {
+func Init() {
 	PWD, _ = os.Getwd()
 	FSConfig = Config{}
 	FSConfig.InitConfig(PWD + "/config/base.conf")

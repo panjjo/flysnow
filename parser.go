@@ -423,7 +423,7 @@ func writeBaseFile() {
 }
 func setBaseTermMap(name string, term models.Term) {
 	if _, ok := baseStrMap["termmap"]; ok {
-		baseStrMap["termmap"] += fmt.Sprintf(`"%s":&%s{rotateat:utils.GetNowSec()},`, name+term.Name, strings.ToUpper(name+term.Name))
+		baseStrMap["termmap"] += fmt.Sprintf(`"%s":&%s{},`, name+term.Name, strings.ToUpper(name+term.Name))
 	} else {
 		baseStrMap["termmap"] = fmt.Sprintf(`"%s":&%s{},`, name+term.Name, strings.ToUpper(name+term.Name))
 	}

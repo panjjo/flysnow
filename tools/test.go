@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/panjjo/flysnow/utils"
 	"fmt"
+	"github.com/panjjo/flysnow/utils"
 	"github.com/panjjo/go-flysnow"
 	"sync"
 	"time"
@@ -10,8 +10,8 @@ import (
 
 func main() {
 
-	query()
-	/*send()*/
+	// query()
+	send()
 }
 func query() {
 	conn, err := flysnow.NewConnection("192.168.1.90", 22258)
@@ -39,17 +39,17 @@ func query() {
 }
 func send() {
 	wgp := sync.WaitGroup{}
-	wgp.Add(1)
+	wgp.Add(10)
 	no := time.Now()
-	for x := 0; x < 1; x++ {
+	for x := 0; x < 10; x++ {
 		go func() {
 			conn, err := flysnow.NewConnection("192.168.1.90", 22258)
 			fmt.Println(err)
-			for i := 0; i < 100; i++ {
-				conn.Send("shop", map[string]interface{}{
-					"shopid":   "1234",
-					"memberid": "abcd",
-					"value":    1,
+			for i := 0; i < 50000; i++ {
+				conn.Send("apis", map[string]interface{}{
+					"api":    "1234",
+					"appkey": "abcd",
+					"code":   "1",
 				})
 				time.Sleep(1 * time.Second)
 			}

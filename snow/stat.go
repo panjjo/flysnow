@@ -92,18 +92,17 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	mgos := utils.MgoSessionDupl(tag)
 	defer mgos.Close()
-	mc := mgos.DB(models.MongoDT + tag).C(req.Term)
+	mc := mgos.DB(models.MongoDT + tag)
 	query := bson.M{}
 	if len(req.Index) > 0 {
 		for k, v := range req.Index {
 			query["index."+k] = v
 		}
 	}
-	if len(req.DataQuery) > 0 {
-		req.DataQuery["s_time"] = bson.M{"$gte": req.STime}
-		req.DataQuery["e_time"] = bson.M{"$lte": req.ETime}
-		query["data"] = bson.M{"$elemMatch": req.DataQuery}
-	}
+
+	req.DataQuery["s_time"] = bson.M{"$gte": req.STime}
+	req.DataQuery["e_time"] = bson.M{"$lte": req.ETime}
+
 	// 获取数据
 	rdsconn := utils.NewRedisConn(tag)
 	defer rdsconn.Close()
@@ -139,19 +138,29 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	// redis end
 	// mgo start
-	datas := []SnowData{}
-	err = mc.Find(query).All(&datas)
 	mgoList := []map[string]interface{}{}
+	datas := []SnowData{}
+	// 获取查询的索引key信息
+	err = mc.C(req.Term).Find(query).All(&datas)
+	indexKeys := []string{}
+	indexMap := map[string]map[string]interface{}{}
+	groupMap := map[string]string{}
 	if len(datas) > 0 {
-		for _, data := range datas {
-			groupkey := req.GroupKeyMgo(data.Index)
-			for _, v := range data.Data {
-				if utils.TInt64(v["s_time"]) >= req.STime && (utils.TInt64(v["e_time"]) <= req.ETime || req.ETime == 0) {
-					v["@groupkey"] = groupkey
-					v["@index"] = data.Index
-					mgoList = append(mgoList, v)
-				}
-			}
+		for _, index := range datas {
+			keys = append(indexKeys, index.Key)
+			indexMap[index.Key] = index.Index
+			groupMap[index.Key] = req.GroupKeyMgo(index.Index)
+		}
+		req.DataQuery["key"] = bson.M{"$in": keys}
+	}
+	objs := []map[string]interface{}{}
+	mc.C(models.MongoOBJ + req.Term).Find(req.DataQuery)
+
+	if len(objs) > 0 {
+		for _, v := range objs {
+			v["@groupkey"] = groupMap[v["key"].(string)]
+			v["@index"] = indexMap[v["key"].(string)]
+			mgoList = append(mgoList, v)
 		}
 	}
 	tl = append(mgoList, tl...)
@@ -179,13 +188,10 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
 	for _, v := range data {
-		// 查询条件数据过滤
-		if utils.DataFilter(v, req.DataQuery) {
-			// 计算总数
-			rotateObj(v, total, termConfig.SpKey)
-			// 处理单项特殊key并加入排序集合
-			sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
-		}
+		// 计算总数
+		rotateObj(v, total, termConfig.SpKey)
+		// 处理单项特殊key并加入排序集合
+		sortdata = append(sortdata, spkeystat(v, termConfig.SpKey))
 	}
 	// spkey,处理合计的特殊key
 	total = spkeystat(total, termConfig.SpKey)

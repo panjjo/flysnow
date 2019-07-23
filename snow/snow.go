@@ -48,6 +48,7 @@ func newHyperLogLog() {
 		conn.Dos("PFMERGE", key, HyperLogLogList[1], HyperLogLogList[2])
 		HyperLogLogList = HyperLogLogList[1:]
 	}
+	log.DEBUG.Printf("new hyperloglog,key:%s", key)
 	HyperLogLogList = append(HyperLogLogList, key)
 
 }
@@ -81,7 +82,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 	b, _ := snowsys.RedisConn.Dos("HGET", snowsys.Key, "e_time")
 	if b != nil {
 		endt, _ := strconv.ParseInt(string(b.([]byte)), 10, 64)
-		if endt < now || now <= utils.DurationMap[snow.InterValDuration+"l"](endt, snow.Interval) {
+		if endt <= now || now < utils.DurationMap[snow.InterValDuration+"l"](endt, snow.Interval) {
 			// 正常rotate 新来数据时间>redis的结束时间 生成新的一条
 			// 旧数据rotate  新来数据时间<= redis的开始时间 讲现有数据rotate ,生成老数据对应的redis数据
 			// 对于数据造成的同个snow有多条数据，在mongo rotate是进行合并
