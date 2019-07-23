@@ -27,12 +27,13 @@ steps:
       password: Shengyun123
       registry: harbor.yunss.com:5000
       repo: harbor.yunss.com:5000/shanshou/flysnow
-      tags: 2.0.0
+      tags: 2.0.2
       insecure: true
 
 trigger:
   branch:
     - shanshou
+    - shanshou1000
     - suyang
 
 volumes:
