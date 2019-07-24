@@ -45,7 +45,7 @@ func send() {
 		go func() {
 			conn, err := flysnow.NewConnection("192.168.1.90", 22258)
 			fmt.Println(err)
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 10000; i++ {
 				conn.Send("apis", map[string]interface{}{
 					"code":"1",
 					"appkey":"a",

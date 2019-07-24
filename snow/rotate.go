@@ -159,7 +159,7 @@ func rotateDo(tb []interface{}, sourceKey string) {
 		snowCfg := models.TermConfigMap[tag][term]
 		snowsys := &SnowSys{
 			&utils.SnowKey{
-				key, utils.GetIndexByMap(snowCfg.Key, dm), false,
+				key, utils.GetIndexBySKey(key), false,
 			},
 			utils.NewRedisConn(tag),
 			tag,
