@@ -20,6 +20,18 @@ func GetIndexByMap(keys []string, data map[string]interface{}) map[string]interf
 	}
 	return result
 }
+
+func GetIndexBySKey(key string) map[string]interface{} {
+	result := map[string]interface{}{}
+	tl := strings.Split(key, "_")
+	for i := 2; i <= len(tl[1:]); i = i + 1 {
+		if tl[i][:1] == "@" {
+			result[tl[i][1:]] = tl[i+1]
+			i += 1
+		}
+	}
+	return result
+}
 func GetKeyByMap(keys []string, data map[string]interface{}) string {
 	strs := []string{}
 	for _, key := range keys {
