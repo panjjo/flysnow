@@ -18,7 +18,7 @@ func Init() {
 	}
 	cron := cron.New()
 	cron.AddFunc("@every 10s", ad)
-	cron.AddFunc("0 0 3 * * *", autoRotate)
+	cron.AddFunc("0 0 8 * * *", autoRotate)
 	cron.AddFunc("@every 1m", lsrRotate)
 	cron.AddFunc("@every 1h", newHyperLogLog)
 	HyperLogLogList = []string{}
