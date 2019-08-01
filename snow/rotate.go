@@ -16,15 +16,19 @@ type SnowData struct {
 	STime int64  `json:"s_time" bson:"s_time"`
 	ETime int64  `json:"e_time" bson:"e_time"`
 	Index map[string]interface{}
-	Term  string
-	Tag   string
+	Term  string `bson:"-"`
+	Tag   string `bson:"-"`
 	Query bson.M `bson:"-"`
 }
 
 // 归档计算
 func rotateObj(from, to map[string]interface{}, spkey map[string]string) map[string]interface{} {
 	for tk, tv := range from {
-		if tk != "s_time" && tk != "e_time" && tk[:1] != "@" {
+		switch tk {
+		case "s_time", "e_time", "index", "_id", "key", "@index", "@groupkey":
+			to[tk] = tv
+		default:
+
 			if tpe, ok := spkey[tk]; ok {
 				utils.RotateSpKeyFuncs(tpe, tk, from, to)
 			} else {
@@ -172,7 +176,7 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 		snowCfg := models.TermConfigMap[tag][term]
 		snowsys := &SnowSys{
 			&utils.SnowKey{
-				key, utils.GetIndexByMap(snowCfg.Key, redisData), false,
+				key, utils.GetIndexBySKey(key), false,
 			},
 			utils.NewRedisConn(tag),
 			tag,
@@ -213,7 +217,6 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 					log.DEBUG.Printf("rotate get mgo notfound key:%s", key)
 				}
 			}
-			log.WARN.Printf("%+v", mongoIndex)
 			// 用来存放需要下一个归档等级的数据
 			tmpList := []map[string]interface{}{}
 			// 循环待归档数据，查询其中是否存在元素满足此归档等级
@@ -232,12 +235,14 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 						mongoIndex.ETime = endTime
 						mongoIndex.STime = utils.DurationMap[snow.TimeoutDuration+"l"](mongoIndex.ETime, snow.Timeout)
 					}
-					data["s_time"] = startTime
-					data["e_time"] = endTime
-					data["key"] = key
-					log.DEBUG.Printf("rotate save obj:%+v", data)
+					log.DEBUG.Printf("rotate save obj:%+v", key)
 					// 写入此数据
-					if err := mongoObjInsert(mcObj, data); err != nil {
+					if err := mongoObjInsert(mcObj, map[string]interface{}{
+						"s_time": startTime,
+						"e_time": endTime,
+						"key":    key,
+						"index":  snowsys.Index,
+					}, data); err != nil {
 						log.ERROR.Printf("rotate save obj err:%v", err)
 					}
 				}
@@ -245,8 +250,6 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 			// 更新索引数据
 			if mongoIndex.Key == "" {
 				mongoIndex.Key = key
-				mongoIndex.Tag = tag
-				mongoIndex.Term = term
 				mongoIndex.Index = snowsys.Index
 			}
 			log.DEBUG.Printf("rotate save index,key:%s", mongoIndex.Key)
@@ -285,11 +288,8 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 			mongoIndexUpsert(mcIndex, SnowData{
 				Key: snowsys.Key, Tag: tag, Term: term, Index: snowsys.Index, ETime: mongoIndex.STime,
 			})
-			tmp["e_time"] = mongoIndex.STime
-			tmp["s_time"] = 0
-			tmp["key"] = snowsys.Key
 			// 保存数据
-			mongoObjInsert(mcObj, tmp)
+			mongoObjInsert(mcObj, map[string]interface{}{"e_time": mongoIndex.STime, "s_time": 0, "key": snowsys.Key, "index": snowsys.Index}, tmp)
 
 		}
 	}
@@ -299,12 +299,20 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 
 }
 
-func mongoObjInsert(m *mgo.Collection, data map[string]interface{}) error {
-	s_time, e_time, key := data["s_time"], data["e_time"], data["key"]
-	delete(data, "key")
-	delete(data, "s_time")
-	delete(data, "e_time")
-	_, err := m.Upsert(bson.M{"key": key, "s_time": s_time, "e_time": e_time}, bson.M{"$inc": data})
+func mongoObjInsert(m *mgo.Collection, index, data map[string]interface{}) error {
+	if _, ok := data["s_time"]; ok {
+		delete(data, "s_time")
+	}
+	if _, ok := data["e_time"]; ok {
+		delete(data, "e_time")
+	}
+	if _, ok := data["key"]; ok {
+		delete(data, "key")
+	}
+	if _, ok := data["index"]; ok {
+		delete(data, "index")
+	}
+	_, err := m.Upsert(bson.M{"key": index["key"], "s_time": index["s_time"], "e_time": index["e_time"]}, bson.M{"$inc": data, "$set": bson.M{"index": index["index"]}})
 	return err
 }
 

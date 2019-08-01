@@ -94,14 +94,17 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	defer mgos.Close()
 	mc := mgos.DB(models.MongoDT + tag)
 	query := bson.M{}
+	if len(req.DataQuery) > 0 {
+		query = req.DataQuery
+	}
 	if len(req.Index) > 0 {
 		for k, v := range req.Index {
 			query["index."+k] = v
 		}
 	}
 
-	req.DataQuery["s_time"] = bson.M{"$gte": req.STime}
-	req.DataQuery["e_time"] = bson.M{"$lte": req.ETime}
+	query["s_time"] = bson.M{"$gte": req.STime}
+	query["e_time"] = bson.M{"$lte": req.ETime}
 
 	// 获取数据
 	rdsconn := utils.NewRedisConn(tag)
@@ -139,27 +142,22 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	// redis end
 	// mgo start
 	mgoList := []map[string]interface{}{}
-	datas := []SnowData{}
-	// 获取查询的索引key信息
-	err = mc.C(req.Term).Find(query).All(&datas)
-	indexKeys := []string{}
-	indexMap := map[string]map[string]interface{}{}
 	groupMap := map[string]string{}
-	if len(datas) > 0 {
-		for _, index := range datas {
-			keys = append(indexKeys, index.Key)
-			indexMap[index.Key] = index.Index
-			groupMap[index.Key] = req.GroupKeyMgo(index.Index)
-		}
-		req.DataQuery["key"] = bson.M{"$in": keys}
-	}
 	objs := []map[string]interface{}{}
-	mc.C(models.MongoOBJ + req.Term).Find(req.DataQuery)
-
+	mc.C(models.MongoOBJ + req.Term).Find(query).All(&objs)
 	if len(objs) > 0 {
+		var tmpKey string
+		var tmpIndex map[string]interface{}
 		for _, v := range objs {
-			v["@groupkey"] = groupMap[v["key"].(string)]
-			v["@index"] = indexMap[v["key"].(string)]
+			tmpKey = v["key"].(string)
+			tmpIndex = v["index"].(map[string]interface{})
+			if groupkey, ok := groupMap[tmpKey]; ok {
+				v["@groupkey"] = groupkey
+			} else {
+				groupMap[tmpKey] = req.GroupKeyMgo(tmpIndex)
+				v["@groupkey"] = groupMap[tmpKey]
+			}
+			v["@index"] = tmpIndex
 			mgoList = append(mgoList, v)
 		}
 	}
@@ -184,7 +182,6 @@ func Stat(d []byte, tag string) (error, interface{}) {
 			groupdata[gsk] = len(data) - 1
 		}
 	}
-
 	sortdata := []interface{}{}
 	total := map[string]interface{}{}
 	for _, v := range data {
@@ -223,15 +220,16 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				break
 			}
 			if req.STime == 0 && nums == 0 {
+				log.INFO.Println("1")
 				break
 			}
 			if v, ok := keymaps[stime]; ok {
 				sortdata = append(sortdata, v...)
+				nums--
 			} else {
 				sortdata = append(sortdata, map[string]interface{}{"s_time": stime, "e_time": etime, "@index": emptyIndex})
 			}
 			etime = stime
-			nums--
 		}
 	}
 	// sort

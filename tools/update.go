@@ -2,15 +2,19 @@ package main
 
 import (
 	"fmt"
+	"github.com/panjf2000/ants"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/tmp"
 	"github.com/panjjo/flysnow/utils"
 	"gopkg.in/mgo.v2/bson"
 	"os"
-	"sync"
+	"time"
 )
 
+var pool *ants.Pool
+
 func main() {
+	pool, _ = ants.NewPool(10)
 	updateToRelesase1200()
 }
 
@@ -26,12 +30,12 @@ type Indexs struct {
 
 // 从release1000升级到release1200
 func updateToRelesase1200() {
+	s:=time.Now()
 	PWD, _ := os.Getwd()
 	fmt.Println(PWD)
 	utils.FSConfig = utils.Config{}
 	utils.FSConfig.InitConfig(PWD + "/config/base.conf")
 	utils.FSConfig.SetMod("sys")
-	wg := sync.WaitGroup{}
 	tmp.Init()
 	for tag, terms := range models.TermConfigMap {
 		utils.MgoInit(tag)
@@ -42,41 +46,46 @@ func updateToRelesase1200() {
 			var n int
 			for {
 				indexs := []Indexs{}
-				msIndex.Find(bson.M{}).Skip(n).Limit(100).All(&indexs)
-				fmt.Println(len(indexs),tag,term,n,msIndex.FullName)
-				go func(objs []Indexs,tag,term string) {
-					wg.Add(1)
-					defer wg.Done()
-					fmt.Println(tag)
+				msIndex.Find(bson.M{"s_key": bson.M{"$exists": true}}).Skip(n).Limit(100).All(&indexs)
+				fmt.Println(len(indexs), tag, term, n, msIndex.FullName)
+				if len(indexs) == 0 {
+					break
+				}
+				ss := func() {
 					mss := utils.MgoSessionDupl(tag)
 					defer mss.Close()
 					mssIndex := mss.DB(models.MongoDT + tag).C(models.MongoIndex + term)
 					mssObj := mss.DB(models.MongoDT + tag).C(models.MongoOBJ + term)
-					for _, obj := range objs {
-						mssIndex.Remove(bson.M{"$or":[]bson.M{bson.M{"s_key": obj.Key},bson.M{"key":obj.Key}}})
-						mssIndex.Insert(bson.M{
-							"key":    obj.Key,
-							"e_time": obj.ETime,
-							"s_time": obj.STime,
-							"index":  obj.Index,
-							"term":   obj.Term,
-							"tag":    obj.Tag,
+					var objs []interface{}
+					newIndexs := []interface{}{}
+					for _, index := range indexs {
+						newIndexs = append(newIndexs, bson.M{
+							"key":    index.Key,
+							"e_time": index.ETime,
+							"s_time": index.STime,
+							"index":  index.Index,
 						})
-						for _, d := range obj.Data {
-							mv := map[string]interface{}{"key": obj.Key}
-							for k, v := range d {
-								mv[k] = v
-							}
-							mssObj.Insert(mv)
+						objs = []interface{}{}
+						for _, d := range index.Data {
+							d["key"] = index.Key
+							d["index"] = index.Index
+							objs = append(objs, d)
 						}
+						mssObj.Insert(objs...)
 					}
-				}(indexs,tag,term)
+					mssIndex.Insert(newIndexs...)
+				}
+				ssss := time.Now()
+				pool.Submit(ss)
+				fmt.Println(tag, term, time.Since(ssss))
 				if len(indexs) < 100 {
 					break
 				}
 				n = n + 100
 			}
+			msIndex.RemoveAll(bson.M{"s_key": bson.M{"$exists": true}})
+
 		}
 	}
-	wg.Wait()
+	fmt.Println(time.Since(s))
 }
