@@ -12,7 +12,7 @@ var termmap = map[string]Term{
 var termconfigstr = `{{termconfigstr}}`
 
 
-func init() {
+func Init() {
   {{init}}
 	models.TermConfigMap = map[string]map[string]*models.TermConfig{}
 	utils.JsonDecode([]byte(termconfigstr), &models.TermConfigMap)
