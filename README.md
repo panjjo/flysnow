@@ -16,7 +16,7 @@
       redis.MaxActive=100                 #redis连接池最大活跃链接数 默认为0不限制
       mgo.Host=mongodb://127.0.0.1:27017  #mgo地址
       mgo.Dupl=clone                      #mgo session生成方式 clone copy new 默认为clone
-      filter.save =0                      #过滤数据是否永久存储,0 重启清空，1 永久存储 默认0 只能设置sys不能单独设置
+
       [order]
       redis.Host=127.0.0.1
       redis.MaxPoolConn=100               #redis链接池最大链接数 默认为10
@@ -61,7 +61,8 @@
                "name":"order_filter",       #过滤器名称
                "offset":120,                #数据失效时长 和duration同时使用,设置为0标识永不失效
                "whence":0,                  #时长计算类型 (详情看 过滤器定制)
-               "duration":"s"               #时长单位 s 秒 h 小时 d 天 m 月 y 年
+               "duration":"s",              #时长单位 s 秒 h 小时 d 天 m 月 y 年
+               "persistence":true           #是否永久存储，true：永久存储 存储硬盘启动是从硬盘加载数据，false：每次启动创建一个空过滤器
                }
              ]
          }
