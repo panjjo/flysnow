@@ -8,6 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,55 @@ type SnowData struct {
 	Term  string `bson:"-"`
 	Tag   string `bson:"-"`
 	Query bson.M `bson:"-"`
+}
+
+type rotateKeys struct {
+	k  map[string]int64
+	rw *sync.RWMutex
+	ex int64
+}
+
+var rotateKeyLock rotateKeys
+
+func (r *rotateKeys) Get(key string) (t int64) {
+	r.rw.RLock()
+	if n, ok := r.k[key]; ok {
+		t = n
+	}
+	r.rw.RUnlock()
+	return
+}
+func (r *rotateKeys) Set(key string) (t int64) {
+	t = time.Now().Unix()
+	r.rw.Lock()
+	r.k[key] = t
+	r.rw.Unlock()
+	return
+}
+func (r *rotateKeys) GetSet(key string) (bt int64, at int64) {
+	bt = r.Get(key)
+	at = time.Now().Unix()
+	if bt != 0 {
+		for {
+			if bt+r.ex > at {
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	r.rw.Lock()
+	r.k[key] = at
+	r.rw.Unlock()
+	return
+}
+func (r *rotateKeys) Del(key string) (t int64) {
+	t = r.Get(key)
+	if t != 0 {
+		r.rw.Lock()
+		delete(r.k, key)
+		r.rw.Unlock()
+	}
+	return t
 }
 
 // 归档计算
@@ -102,9 +152,40 @@ func autoRotate() {
 	}
 }
 
+// 如果归档数据从归档集合中取出，在work过程中意外退出，此方法检测意外退出的key，并使其继续归档
+func repairRotate() {
+	log.DEBUG.Print("repair Rotate")
+	redisConn := utils.NewRedisConn(models.TagList[0])
+	defer redisConn.Close()
+	startCurr := "0"
+	curr := startCurr
+	for {
+		result, _ := redisConn.Dos("SCAN", curr, "MATCH", sRotateKeyPre+"*")
+		data := result.([]interface{})
+		if len(data) != 2 {
+			break
+		}
+		curr = fmt.Sprintf("%s", data[0].([]uint8))
+		if v, ok := data[1].([]interface{}); ok {
+			if len(v) == 0 {
+				if curr == startCurr {
+					break
+				}
+				continue
+			}
+			v = append([]interface{}{rotateSetsKey}, v...)
+			log.DEBUG.Printf("repair Rotate Keys:%v", v)
+			redisConn.Dos("LPUSH", v...)
+		}
+		if curr == startCurr {
+			break
+		}
+	}
+}
+
 var haveRotatePro bool
 
-// 归档工作 每分钟一次，存在跳过，不存在启动
+// 归档实际work 每分钟一次，存在跳过，不存在启动
 func lsrRotate() {
 	if !haveRotatePro {
 		go rotate()
@@ -124,15 +205,21 @@ func rotate() {
 	var err error
 	var b interface{}
 	var sourceKey string
+	first := true
 	for {
 		// 取出集合中的待归档key，从右侧取出（左入右出）
-		result, err = redisConn.Dos("RPOP", ROTATEKEYS)
+		result, err = redisConn.Dos("RPOP", rotateSetsKey)
 		if err != nil {
 			log.ERROR.Printf("get rotate key err:%v", err)
 			return
 		}
 		if result == nil {
 			time.Sleep(1 * time.Second)
+			if first {
+				// 第一次等待归档集合数据为空时 进行一次意外退出导致归档未完成的数据检查
+				first = false
+				repairRotate()
+			}
 			continue
 		}
 		sourceKey = string(result.([]uint8))
@@ -172,6 +259,8 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 				redisData[rkey], _ = strconv.ParseFloat(string(sourceData[i+1].([]uint8)), 64)
 			}
 		}
+		rotateKeyLock.GetSet(key)
+		defer rotateKeyLock.Del(key)
 		log.DEBUG.Printf("start rotate ,sourcekey %s,key:%s,tag:%s,term:%s", sourceKey, key, tag, term)
 		snowCfg := models.TermConfigMap[tag][term]
 		snowsys := &SnowSys{

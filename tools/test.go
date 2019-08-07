@@ -10,8 +10,8 @@ import (
 
 func main() {
 
-	// query()
-	send()
+	query()
+	// send()
 }
 func query() {
 	conn, err := flysnow.NewConnection("192.168.1.90", 22258)
@@ -51,7 +51,6 @@ func send() {
 					"appkey": "abcd",
 					"code":   fmt.Sprint(a),
 				})
-				// time.Sleep(1 * time.Millisecond)
 			}
 			wgp.Done()
 		}(x)

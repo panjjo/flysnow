@@ -159,9 +159,9 @@ func parserFuncFilter(fs []models.FSFilter) {
 		str := funcstruct.FuncBody
 		str = strings.Replace(str, "{{name}}", strings.ToUpper(datastruct.name+f.Name), -1)
 		str = strings.Replace(str, "{{names}}", datastruct.name+f.Name, -1)
-		baseStrMap["init"] += "tmp" + datastruct.name + f.Name + `:=&` + strings.ToUpper(datastruct.name+f.Name) + fmt.Sprintf(`{utils.FSBtree,%d,%d,"%s","%s"}
+		baseStrMap["init"] += "tmp" + datastruct.name + f.Name + `:=&` + strings.ToUpper(datastruct.name+f.Name) + fmt.Sprintf(`{utils.NewBTree(%v,"%s"),%d,%d,"%s","%s"}
     %s=tmp%s.Do
-    `, f.OffSet, f.Whence, f.Name, f.Duration, datastruct.name+f.Name, datastruct.name+f.Name)
+    `, f.Persistence, f.Name, f.OffSet, f.Whence, f.Name, f.Duration, datastruct.name+f.Name, datastruct.name+f.Name)
 		datastruct.funcsmap[f.Name] = funcstruct
 		// 组装方法代码串
 		datastruct.funcstr += str
@@ -205,7 +205,7 @@ func complexTermDo(f []interface{}) string {
 		formatErr("Complex ExecErr: op not found", f)
 	}
 	switch car {
-	case "+", "avg", "last","-":
+	case "+", "avg", "last", "-":
 	default:
 		formatErr("Complex ExecErr: op not found", f)
 	}

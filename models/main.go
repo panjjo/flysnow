@@ -92,6 +92,7 @@ type FSFilter struct {
 	OffSet   int64
 	Whence   int
 	Duration string
+	Persistence  bool `json:"persistence"`
 }
 type Term struct {
 	Name   string
