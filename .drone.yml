@@ -35,6 +35,7 @@ trigger:
     - shanshou
     - shanshou1000
     - suyang
+    - qindao
 
 volumes:
   - name: cache
