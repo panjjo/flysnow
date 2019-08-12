@@ -385,9 +385,10 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 
 		}
 	}
-	if err := rotatePool.Submit(rotateFunc); err != nil {
-		log.Error(fmt.Sprintf("rotate pool submit task err:%v", err))
-	}
+	// if err := rotatePool.Submit(rotateFunc); err != nil {
+	// 	log.Error(fmt.Sprintf("rotate pool submit task err:%v", err))
+	// }
+	rotateFunc()
 
 }
 
