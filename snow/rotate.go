@@ -130,6 +130,9 @@ func autoRotate() {
 		ks = []string{}
 		for i := 2; i <= len(tl[1:]); i = i + 1 {
 			ks = append(ks, tl[i])
+			if tl[i][:1] == "@" {
+				i += 1
+			}
 		}
 		log.DEBUG.Printf("auto rotate index:%d, key:%s,tag:%s", i, tk, tl[1])
 		for term, config := range models.TermConfigMap[tl[1]] {
