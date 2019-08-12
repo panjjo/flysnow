@@ -38,6 +38,7 @@ func updateToRelesase1200() {
 	utils.FSConfig.SetMod("sys")
 	tmp.Init()
 	for tag, terms := range models.TermConfigMap {
+		fmt.Println("tag:",tag)
 		utils.MgoInit(tag)
 		for term, _ := range terms {
 			fmt.Println("start update tag:", tag, "term:", term)
