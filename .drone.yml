@@ -34,6 +34,7 @@ trigger:
   branch:
     - shanshou
     - shanshou1000
+    - shanshou2000
     - suyang
 
 volumes:
