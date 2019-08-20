@@ -27,7 +27,7 @@ steps:
       username: admin
       password: Shengyun123
       registry: harbor.yunss.com:5000
-      repo: harbor.yunss.com:5000/qindao/flysnow
+      repo: harbor.yunss.com:5000/shanshou/flysnow
       tags: test
       insecure: true
 
