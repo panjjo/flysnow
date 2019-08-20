@@ -2,6 +2,7 @@ package utils
 
 import (
 	"gopkg.in/mgo.v2"
+	"log"
 )
 
 var mongoQuery *mgo.Query
@@ -18,7 +19,7 @@ func MgoInit(tag string) {
 	MongoSession[tag], err = mgo.Dial(h)
 	if err != nil {
 		// Only warn since we'll retry later for each request
-		Log.ERROR.Printf("Could not connect to Mongo DB. Error: %s", err)
+		log.Fatalf("Could not connect to Mongo DB. Error: %s", err)
 	}
 }
 

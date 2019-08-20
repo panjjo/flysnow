@@ -3,9 +3,11 @@ package utils
 import (
 	// 	"code.google.com/p/log4go"
 	"errors"
+	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils/btree"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -14,7 +16,8 @@ import (
 
 var Log LogS
 var PWD string
-var FSBtree *FilterBtree
+
+var BTreeFilesPath = "./btreefiles"
 
 type FilterBtreeItem struct {
 	Key    string
@@ -31,7 +34,7 @@ func (fbi FilterBtreeItem) Trans(b btree.Item) btree.Item {
 }
 
 type FilterBtree struct {
-	*btree.BTree
+	b       *btree.BTree
 	offset  int
 	save    bool
 	f       *os.File
@@ -39,14 +42,17 @@ type FilterBtree struct {
 }
 
 func (fb *FilterBtree) Get(key string) FilterBtreeItem {
-	return fb.Get(key)
+	if res := fb.b.Get(FilterBtreeItem{Key: key}); res != nil {
+		return res.(FilterBtreeItem)
+	}
+	return FilterBtreeItem{}
 }
 func (fb *FilterBtree) Set(item FilterBtreeItem) {
-	fb.ReplaceOrInsert(item)
+	fb.b.ReplaceOrInsert(item)
 }
 func (fb *FilterBtree) GetSet(item FilterBtreeItem) (resu FilterBtreeItem, update bool) {
 	item.Offset = fb.offset
-	if res := fb.ReplaceOrInsert(item); res != nil {
+	if res := fb.b.ReplaceOrInsert(item); res != nil {
 		resu = res.(FilterBtreeItem)
 		update = true
 		item.Offset = resu.Offset
@@ -135,14 +141,22 @@ func Init() {
 		QUEUE_EXCHANGE = FSConfig.StringDefault("queue.Exchange", "direct.flysnow")
 		QUEUE_EXCHANGETYPE = FSConfig.StringDefault("queue.ExchangeType", "direct")
 	}
+}
 
-	if FSConfig.IntDefault("filter.Save", 0) == 0 {
-		FSBtree = &FilterBtree{btree.NewBtree(32), 0, false, nil, sync.RWMutex{}}
-	} else {
-		f, err := os.OpenFile("fs_btree", os.O_RDWR|os.O_CREATE, os.ModePerm)
-		if err != nil {
+func NewBTree(persistence bool, name string) *FilterBtree {
+	fs := &FilterBtree{btree.NewBtree(32), 0, persistence, nil, sync.RWMutex{}}
+	if persistence {
+		if !FileOrPathIsExist(BTreeFilesPath) {
+			if err := CreatePathAll(BTreeFilesPath); err != nil {
+				Log.Error(fmt.Sprintf("init create btree file path error,path:%s,err:%v", BTreeFilesPath, err))
+			}
 		}
-		FSBtree = &FilterBtree{btree.NewBtree(32), 0, true, f, sync.RWMutex{}}
-		FSBtree.initBtreeByFile()
+		f, err := os.OpenFile(filepath.Join(BTreeFilesPath, name), os.O_RDWR|os.O_CREATE, os.ModePerm)
+		if err != nil {
+			Log.Error(fmt.Sprintf("init btree file error,file:%s,err:%v", name, err))
+		}
+		fs.f = f
+		fs.initBtreeByFile()
 	}
+	return fs
 }

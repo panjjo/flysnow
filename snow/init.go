@@ -4,10 +4,12 @@ import (
 	"github.com/panjf2000/ants"
 	"github.com/panjjo/flysnow/utils"
 	"github.com/robfig/cron"
+	"sync"
 )
 
 var rotatePool *ants.Pool
 var log utils.LogS
+var rotateKeyFilter *utils.FilterBtree
 
 func Init() {
 	log = utils.Log
@@ -17,13 +19,15 @@ func Init() {
 		log.Error("init rotatepool fail" + err.Error())
 	}
 	cron := cron.New()
+	// 10s调节一次归档work并发数
 	cron.AddFunc("@every 10s", ad)
-	cron.AddFunc("0 0 8 * * *", autoRotate)
+	// 每天检查一次需要归档的元数据
+	cron.AddFunc("0 0 3 * * *", autoRotate)
+	// 每分钟检查一次归档work
 	cron.AddFunc("@every 1m", lsrRotate)
-	cron.AddFunc("@every 1h", newHyperLogLog)
-	HyperLogLogList = []string{}
-	newHyperLogLog()
 	lsrRotate()
+	rotateKeyLock = rotateKeys{k: map[string]int64{}, rw: &sync.RWMutex{}, ex: 5}
+	rotateKeyFilter = utils.NewBTree(false, "")
 	cron.Start()
 }
 

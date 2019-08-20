@@ -241,6 +241,8 @@ github.com/nzlov/jpush-api-go-client v0.0.0-20181207110257-7cdae6a5560f/go.mod h
 github.com/opentracing/opentracing-go v1.0.3-0.20181012221231-be550b025b43/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
 github.com/panjf2000/ants v1.0.0 h1:MZBsUt8W6ktQfhIswUZpw17IJlXY6ly2+U5b9jxwad4=
 github.com/panjf2000/ants v1.0.0/go.mod h1:AaACblRPzq35m1g3enqYcxspbbiOJJYaxU2wMpm1cXY=
+github.com/panjf2000/ants v1.1.0 h1:z1311FxGnwySXwQum1k4ZlHkWs86Xy18il4fuRzQemw=
+github.com/panjf2000/ants v1.1.0/go.mod h1:AaACblRPzq35m1g3enqYcxspbbiOJJYaxU2wMpm1cXY=
 github.com/panjf2000/ants v4.0.2+incompatible h1:6K9b4YyUmbTvfxGm2YZgmDgIiCEyP1x+gewN+tBr/8U=
 github.com/panjf2000/ants v4.0.2+incompatible/go.mod h1:AaACblRPzq35m1g3enqYcxspbbiOJJYaxU2wMpm1cXY=
 github.com/panjjo/fdfs_client v0.0.0-20181117121657-4ad9ba43bacf/go.mod h1:cQHbd4SW2UtLsZmxgGXgFqsdaY40Yd/5ncsX3nrV87U=

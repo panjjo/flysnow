@@ -32,6 +32,7 @@ func GetIndexBySKey(key string) map[string]interface{} {
 	}
 	return result
 }
+
 func GetKeyByMap(keys []string, data map[string]interface{}) string {
 	strs := []string{}
 	for _, key := range keys {

@@ -17,6 +17,7 @@ steps:
       - git submodule update 
       - go run -v parser.go 
       - go build -o srv main.go
+      - go build -o update tools/update.go
     volumes:
       - name: cache
         path: /cache
@@ -26,8 +27,8 @@ steps:
       username: admin
       password: Shengyun123
       registry: harbor.yunss.com:5000
-      repo: harbor.yunss.com:5000/shanshou/flysnow
-      tags: 2.0.3
+      repo: harbor.yunss.com:5000/qindao/flysnow
+      tags: test
       insecure: true
 
 trigger:
@@ -36,6 +37,7 @@ trigger:
     - shanshou1000
     - shanshou2000
     - suyang
+    - qindao
 
 volumes:
   - name: cache

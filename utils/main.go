@@ -2,13 +2,21 @@ package utils
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
 )
+
+func Md5(s string) string {
+	h := md5.New()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%x",h.Sum(nil))
+}
 
 var DurationMap = map[string]func(t, num int64) int64{
 	"s":  durationS,
@@ -193,7 +201,7 @@ func CreatePathAll(path string) error {
 	return os.MkdirAll(path, 0777)
 }
 
-//整形转换成字节
+// 整形转换成字节
 func IntToBytes(n int) []byte {
 	x := int32(n)
 
@@ -202,7 +210,7 @@ func IntToBytes(n int) []byte {
 	return bytesBuffer.Bytes()
 }
 
-//字节转换成整形
+// 字节转换成整形
 func BytesToInt(b []byte) int {
 	bytesBuffer := bytes.NewBuffer(b)
 
@@ -212,7 +220,7 @@ func BytesToInt(b []byte) int {
 	return int(x)
 }
 
-//整形转换成字节
+// 整形转换成字节
 func Int64ToBytes(n int64) []byte {
 	x := int64(n)
 
@@ -221,7 +229,7 @@ func Int64ToBytes(n int64) []byte {
 	return bytesBuffer.Bytes()
 }
 
-//字节转换成整形
+// 字节转换成整形
 func BytesToInt64(b []byte) int64 {
 	bytesBuffer := bytes.NewBuffer(b)
 
@@ -231,7 +239,7 @@ func BytesToInt64(b []byte) int64 {
 	return int64(x)
 }
 
-//返回当前系统时间戳
+// 返回当前系统时间戳
 func GetNowSec() int64 {
 	return time.Now().Unix()
 }
