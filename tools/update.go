@@ -6,6 +6,7 @@ import (
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/tmp"
 	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
 	"time"
 )
@@ -13,6 +14,7 @@ import (
 var pool *ants.Pool
 
 func main() {
+	logrus.SetLevel(logrus.DebugLevel)
 	pool, _ = ants.NewPool(10)
 	updateToRelesase1200()
 }
