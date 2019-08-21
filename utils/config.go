@@ -1,155 +1,55 @@
 package utils
 
 import (
-	"bufio"
-	"io"
-	"os"
-	"strconv"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"strings"
 )
 
-const middle = "========="
-
-var FSConfig Config
-var fsctags map[string]int
-
-type Config struct {
-	Mymap       map[string]string
-	strcet, Mod string
+type config struct {
+	MQ            *RabbitmqConfig `json:"rabbitmq" yaml:"rabbitmq" mapstructure:"rabbitmq"`
+	RDS           *RDSConfig      `json:"redis" yaml:"redis" mapstructure:"redis"`
+	Mgo           *MgoConfig      `json:"mongo" yaml:"mongo" mapstructure:"mongo"`
+	LogLevel      string          `json:"logger" yaml:"logger" mapstructure:"logger"`
+	AutoRotate    string          `json:"autoRotate" yaml:"autoRotate" mapstructure:"autoRotate"`
+	DataPath      string          `json:"dataPath" yaml:"dataPath" mapstructure:"dataPath"`
+	Listen        string          `json:"listen" yaml:"listen" mapstructure:"listen"`
+	MaxRotateNums int             `json:"maxRotateNums" yaml:"maxRotateNums" mapstructure:"maxRotateNums"`
 }
 
-func (c *Config) SetMod(tag string) {
-	if _, ok := fsctags[tag]; ok {
-		c.Mod = tag
-	} else {
-		c.Mod = "sys"
-	}
+var Config *config
 
-}
+func LoacConfig() {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./")
+	viper.SetDefault("logger", "debug")
+	viper.SetDefault("dataPath", "./btreefiles")
+	viper.SetDefault("autoRotate", "0 0 1 * * *")
+	viper.SetDefault("rabbitmq", DefaultMQConfig)
+	viper.SetDefault("redis", DefaultRDSConfig)
+	viper.SetDefault("mongo", DefaultMgoConfig)
+	viper.SetDefault("listen", ":22258")
+	viper.SetDefault("maxRotateNums", 50)
 
-func (c *Config) InitConfig(path string) {
-	c.Mymap = make(map[string]string)
-	fsctags = map[string]int{}
-
-	f, err := os.Open(path)
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	err := viper.ReadInConfig()
 	if err != nil {
-		panic(err)
+		logrus.Fatalln("init config error:", err)
 	}
-	defer f.Close()
-
-	r := bufio.NewReader(f)
-	for {
-		b, _, err := r.ReadLine()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			panic(err)
-		}
-
-		s := strings.TrimSpace(string(b))
-		//fmt.Println(s)
-		if strings.Index(s, "#") == 0 {
-			continue
-		}
-
-		n1 := strings.Index(s, "[")
-		n2 := strings.LastIndex(s, "]")
-		if n1 > -1 && n2 > -1 && n2 > n1+1 {
-			c.strcet = strings.TrimSpace(s[n1+1 : n2])
-			continue
-		}
-
-		if len(c.strcet) == 0 {
-			continue
-		}
-		index := strings.Index(s, "=")
-		if index < 0 {
-			continue
-		}
-
-		frist := strings.TrimSpace(s[:index])
-		if len(frist) == 0 {
-			continue
-		}
-		second := strings.TrimSpace(s[index+1:])
-
-		pos := strings.Index(second, "\t#")
-		if pos > -1 {
-			second = second[0:pos]
-		}
-
-		pos = strings.Index(second, " #")
-		if pos > -1 {
-			second = second[0:pos]
-		}
-
-		pos = strings.Index(second, "\t//")
-		if pos > -1 {
-			second = second[0:pos]
-		}
-
-		pos = strings.Index(second, " //")
-		if pos > -1 {
-			second = second[0:pos]
-		}
-
-		if len(second) == 0 {
-			continue
-		}
-
-		key := c.strcet + middle + frist
-		fsctags[c.strcet] = 1
-		c.Mymap[key] = strings.TrimSpace(second)
+	logrus.Infoln("init config ok")
+	Config = &config{}
+	err = viper.Unmarshal(&Config)
+	if err != nil {
+		logrus.Fatalln("init config unmarshal error:", err)
 	}
-}
-
-func (c Config) StringDefault(k, d string) string {
-	if s, ok := c.Mymap[middle+k]; ok {
-		d = s
-	}
-	k = c.Mod + middle + k
-	v, found := c.Mymap[k]
-	if !found {
-		return d
-	}
-	return v
-}
-
-func (c Config) String(k string) (d string) {
-	if s, ok := c.Mymap[middle+k]; ok {
-		d = s
-	}
-	k = c.Mod + middle + k
-	v, found := c.Mymap[k]
-	if !found {
-		return d
-	}
-	return v
-}
-
-func (c Config) IntDefault(k string, d int) int {
-	if s, ok := c.Mymap[middle+k]; ok {
-		d, _ = strconv.Atoi(s)
-	}
-	k = c.Mod + middle + k
-	v, found := c.Mymap[k]
-	if !found {
-		return d
-	}
-	i, _ := strconv.Atoi(v)
-	return i
-}
-
-func (c Config) Int(k string) (i int) {
-	if s, ok := c.Mymap[middle+k]; ok {
-		i, _ = strconv.Atoi(s)
-	}
-	k = c.Mod + middle + k
-	v, found := c.Mymap[k]
-	if !found {
-		return i
-	}
-	i, _ = strconv.Atoi(v)
-	return i
+	logrus.Debugf("config :%+v", Config)
+	logrus.Debugf("mongo :%+v", Config.Mgo)
+	logrus.Debugf("redis :%+v", Config.RDS)
+	logrus.Debugf("rabbitmq :%+v", Config.MQ)
+	level, _ := logrus.ParseLevel(Config.LogLevel)
+	logrus.SetLevel(level)
+	MongoPrefix = Config.Mgo.Prefix
+	RDSPrefix = Config.RDS.Prefix
 }

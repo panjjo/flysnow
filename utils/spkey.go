@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/panjjo/flysnow/models"
+	"github.com/sirupsen/logrus"
 )
 
 //归档时redis需要针对spkey做的特殊处理
@@ -12,7 +13,7 @@ func RDSSpKeyFuncs(t, key string, data map[string]interface{}, rkey *SnowKey) Rd
 	case models.SPKEYAVG:
 		return spkeyAvgRedis(key, data, rkey)
 	default:
-		Log.ERROR.Printf("not found spkey type:%s", t)
+		logrus.Errorf("not found spkey type:%s", t)
 		return RdsSendStruct{}
 	}
 }
@@ -38,7 +39,7 @@ func RotateSpKeyFuncs(t, key string, from, data map[string]interface{}) map[stri
 	case models.SPKEYAVG:
 		spkeyAvgRotate(key, from, data)
 	default:
-		Log.ERROR.Printf("not found spkey type:%s", t)
+		logrus.Errorf("not found spkey type:%s", t)
 	}
 	return data
 }
@@ -70,7 +71,7 @@ func StatSpKeyFuncs(t, key string, data map[string]interface{}) map[string]inter
 		//计算平均值
 		spkeyAvgStat(key, data)
 	default:
-		Log.ERROR.Printf("not found spkey type:%s", t)
+		logrus.Errorf("not found spkey type:%s", t)
 	}
 	return data
 }

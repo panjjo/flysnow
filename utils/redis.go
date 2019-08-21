@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -11,19 +11,35 @@ const (
 	RDSHINCRBYFLOAT = "HINCRBYFLOAT"
 )
 
-var redispool = map[string]*redis.Pool{}
+var RDSPrefix string
+
+var DefaultRDSConfig *RDSConfig = &RDSConfig{
+	Host:    "redis.base:6379",
+	MaxConn: 100,
+	DB:      1,
+	Prefix:  "fs",
+}
+
+type RDSConfig struct {
+	Host    string `json:"host" yaml:"host" mapstructure:"host"`
+	MaxConn int    `json:"maxConn" yaml:"maxConn" mapstructure:"maxConn"`
+	DB      int    `json:"db" yaml:"db" mapstructure:"db"`
+	Prefix  string `json:"prefix" yaml:"prefix" mapstructure:"prefix"`
+}
+
+var redispool *redis.Pool
 
 type RedisConn struct {
 	Con redis.Conn
 }
 
-func NewRedisConn(tag string) *RedisConn {
-	return &RedisConn{redispool[tag].Get()}
+func NewRedisConn() *RedisConn {
+	return &RedisConn{redispool.Get()}
 }
 func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, err error) {
 	result, err = r.Con.Do(cmd, args...)
 	if err != nil {
-		Log.Error(fmt.Sprintf("RDS DOS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err))
+		logrus.Fatalf("RDS DOS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err)
 	}
 	return
 }
@@ -31,7 +47,7 @@ func (r *RedisConn) Dos(cmd string, args ...interface{}) (result interface{}, er
 func (r *RedisConn) Sends(cmd string, args ...interface{}) error {
 	err := r.Con.Send(cmd, args...)
 	if err != nil {
-		Log.Error(fmt.Sprintf("RDS SENDS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err))
+		logrus.Fatalf("RDS SENDS ERR,cmd:%s,args:%v ,err:%v", cmd, args, err)
 	}
 	return err
 }
@@ -40,23 +56,17 @@ func (r *RedisConn) Close() {
 	r.Con.Close()
 }
 
-type RedisConfig struct {
-	Server             string
-	MaxIdle, MaxActive int
-	DB                 int
-}
-
 /*
 生成redis连接池
 */
-func newRedisPool(conf *RedisConfig) *redis.Pool {
+func newRedisPool(conf *RDSConfig) *redis.Pool {
 	return &redis.Pool{
-		MaxIdle:     conf.MaxIdle,
-		MaxActive:   conf.MaxActive,
+		MaxIdle:     conf.MaxConn,
+		MaxActive:   conf.MaxConn,
 		IdleTimeout: 240 * time.Second,
 		Wait:        true,
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", conf.Server, redis.DialDatabase(conf.DB))
+			c, err := redis.Dial("tcp", conf.Host, redis.DialDatabase(conf.DB))
 			if err != nil {
 				return nil, err
 			}
@@ -72,16 +82,12 @@ func newRedisPool(conf *RedisConfig) *redis.Pool {
 /*
 生成redis连接池
 */
-func InitRedis(tag string) {
-	if redispool[tag] == nil {
-		FSConfig.SetMod(tag)
-		config := RedisConfig{
-			Server:    FSConfig.StringDefault("redis.Host", "192.168.1.9:6379"),
-			MaxActive: FSConfig.IntDefault("redis.MaxActive", 100),
-			MaxIdle:   FSConfig.IntDefault("redis.MaxPoolConn", 100),
-			DB:        FSConfig.IntDefault("redis.DB", 0),
-		}
-		redispool[tag] = newRedisPool(&config)
+func InitRedis(config *RDSConfig) {
+	if config == nil {
+		config = DefaultRDSConfig
+	}
+	if redispool == nil {
+		redispool = newRedisPool(config)
 	}
 }
 
@@ -94,8 +100,8 @@ type RdsCommand struct {
 	V   []interface{}
 }
 
-func RdsBatchCommands(tag string, commands []*RdsSendStruct) {
-	conn := NewRedisConn(tag)
+func RdsBatchCommands(commands []*RdsSendStruct) {
+	conn := NewRedisConn()
 	defer conn.Close()
 	conn.Dos("MULTI")
 	defer conn.Dos("EXEC")

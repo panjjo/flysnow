@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 	"sort"
 	"strconv"
 	"strings"
@@ -90,9 +91,9 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	if req.ETime == 0 {
 		req.ETime = utils.DurationMap["d"](utils.GetNowSec(), 1)
 	}
-	mgos := utils.MgoSessionDupl(tag)
+	mgos := utils.MgoSessionDupl()
 	defer mgos.Close()
-	mc := mgos.DB(models.MongoDT + tag)
+	mc := mgos.DB(utils.MongoPrefix+ tag)
 	query := bson.M{}
 	if len(req.DataQuery) > 0 {
 		query = req.DataQuery
@@ -107,21 +108,21 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	query["e_time"] = bson.M{"$lte": req.ETime}
 
 	// 获取数据
-	rdsconn := utils.NewRedisConn(tag)
+	rdsconn := utils.NewRedisConn()
 	defer rdsconn.Close()
 	tl := []map[string]interface{}{}
 	var keys interface{}
 	termConfig := models.TermConfigMap[tag][req.Term]
 	for _, tmpkey := range utils.GetRdsKeyByIndex(req.Index, termConfig.Key) {
 		if tmpkey.Re {
-			rdsk := models.RedisKT + "_" + tag + "_" + tmpkey.Key
+			rdsk := utils.RDSPrefix + "_" + tag + "_" + tmpkey.Key
 			// get from redis
 			keys, err = rdsconn.Dos("KEYS", rdsk)
 			if err != nil {
 				continue
 			}
 		} else {
-			keys = []interface{}{[]byte(models.RedisKT + "_" + tag + "_" + tmpkey.Key)}
+			keys = []interface{}{[]byte(utils.RDSPrefix + "_" + tag + "_" + tmpkey.Key)}
 		}
 		for _, k := range keys.([]interface{}) {
 			tk := string(k.([]byte))
@@ -144,7 +145,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	mgoList := []map[string]interface{}{}
 	groupMap := map[string]string{}
 	objs := []map[string]interface{}{}
-	mc.C(models.MongoOBJ + req.Term).Find(query).All(&objs)
+	mc.C(utils.MongoOBJ + req.Term).Find(query).All(&objs)
 	if len(objs) > 0 {
 		var tmpKey string
 		var tmpIndex map[string]interface{}
@@ -201,7 +202,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		keymaps := map[int64][]interface{}{}
 		var dataTime int64
 		for _, data := range sortdata {
-			dataTime = data.(map[string]interface{})["s_time"].(int64)
+			dataTime = utils.TInt64(data.(map[string]interface{})["s_time"])
 			if _, ok := keymaps[dataTime]; !ok {
 				keymaps[dataTime] = []interface{}{data}
 			} else {
@@ -220,7 +221,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 				break
 			}
 			if req.STime == 0 && nums == 0 {
-				log.INFO.Println("1")
+				logrus.Infoln("1")
 				break
 			}
 			if v, ok := keymaps[stime]; ok {
