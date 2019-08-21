@@ -42,7 +42,7 @@ func updateToRelesase1200() {
 		utils.MgoInit(tag)
 		for term, _ := range terms {
 			fmt.Println("start update tag:", tag, "term:", term)
-			ms := utils.MgoSessionDupl(tag).DB(models.MongoDT + tag)
+			ms := utils.MgoSessionDupl(tag).DB(utils.MongoPrefix + tag)
 			msIndex := ms.C(models.MongoIndex + term)
 			var n int
 			for {
@@ -55,8 +55,8 @@ func updateToRelesase1200() {
 				ss := func() {
 					mss := utils.MgoSessionDupl(tag)
 					defer mss.Close()
-					mssIndex := mss.DB(models.MongoDT + tag).C(models.MongoIndex + term)
-					mssObj := mss.DB(models.MongoDT + tag).C(models.MongoOBJ + term)
+					mssIndex := mss.DB(utils.MongoPrefix + tag).C(models.MongoIndex + term)
+					mssObj := mss.DB(utils.MongoPrefix + tag).C(utils.MongoOBJ + term)
 					var objs []interface{}
 					newIndexs := []interface{}{}
 					for _, index := range indexs {

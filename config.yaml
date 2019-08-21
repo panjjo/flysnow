@@ -6,7 +6,6 @@ redis:
 mongo:
   host: mongodb://mongo.base:27017   # mongo地址
   dupl: clone                        # mongo 连接方式
-  maxConn: 50                        # 最大连接数
   prefix: FS                         # mongo 库名前缀
 rabbitmq:
   queue: 1                                           # 是否开启队列接收数据
@@ -14,6 +13,9 @@ rabbitmq:
   name: flysnow                                      # 队列名称
   exchange: topic.kabbao                             # exchange 名称
   extype: topic                                      # exchange 类型
-logger: debug                                # 日志等级
-rotate:
-  auto: 0 0 3 * * *  # s min h d m week      # 自动归档定时
+autoRotate: 0 0 3 * * *  # s min h d m week        # 自动归档定时
+maxRotateNums: 20                                  # 最大自动归档并发数
+datapath: ./btreefiles                             # 永久存储btree文件存放目录
+logger: debug                                      # 日志等级
+listen: 0.0.0.0:22258                              # 监听地址和端口
+

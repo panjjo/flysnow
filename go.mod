@@ -20,6 +20,7 @@ require (
 	github.com/panjjo/log4go v0.0.0-20161217074253-5bde1464d311
 	github.com/robfig/cron v1.2.0
 	github.com/ryanuber/columnize v2.1.0+incompatible // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/viper v1.3.1
 	github.com/streadway/amqp v0.0.0-20181205114330-a314942b2fd9
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce

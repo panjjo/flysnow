@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"time"
@@ -110,7 +111,7 @@ func (t *Timer) End() {
 	if t.AutoEnd != 0 {
 		if t.n%t.AutoEnd == 0 {
 			t.tsone = t.ts / t.n
-			Log.ERROR.Printf("name:%s,ts:%vms,tsone:%vus", t.Name, t.ts/1000000, t.tsone/1000)
+			logrus.Errorf("name:%s,ts:%vms,tsone:%vus", t.Name, t.ts/1000000, t.tsone/1000)
 			t.n = 0
 			t.ts = 0
 		}

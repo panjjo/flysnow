@@ -1,21 +1,13 @@
 package utils
 
 import (
-	"errors"
-	"fmt"
-	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils/btree"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
-
-	"github.com/panjjo/log4go"
-	"github.com/sirupsen/logrus"
 )
 
-var Log LogS
-var PWD string
 
 var BTreeFilesPath = "./btreefiles"
 
@@ -105,56 +97,23 @@ func (fb *FilterBtree) writeFile(item FilterBtreeItem) {
 			fb.offset += len(b)
 		}
 		if _, err := fb.f.WriteAt(b, offset); err != nil {
-			Log.ERROR.Printf("fsbtree write to file err:" + err.Error())
+			logrus.Errorf("fsbtree write to file err:" + err.Error())
 		}
 	}
 }
 
-type LogS struct {
-	*log4go.Logger
-}
-
-func (l *LogS) Error(s string) {
-	logrus.a
-	l.ERROR.Print(s)
-	time.Sleep(1 * time.Second)
-	os.Exit(1)
-}
-func (l *LogS) NewErr(s string) error {
-	return errors.New(s)
-}
-
-func Init() {
-	PWD, _ = os.Getwd()
-	FSConfig = Config{}
-	FSConfig.InitConfig(PWD + "/config/base.conf")
-	FSConfig.SetMod("sys")
-	if tag := FSConfig.String("tag"); tag != "" {
-		models.MongoDT = tag
-		models.RedisKT = tag
-	}
-	Log = LogS{log4go.NewLogger(FSConfig.StringDefault("logger.level", "info"))}
-
-	if FSConfig.IntDefault("queue", 0) == 1 {
-		StartQueueListen = true
-		QUEUE_HOST = FSConfig.StringDefault("queue.Host", "guest:guest@127.0.0.1:5672/flysnow")
-		QUEUE_NAME = FSConfig.StringDefault("queue.Name", "flysnow")
-		QUEUE_EXCHANGE = FSConfig.StringDefault("queue.Exchange", "direct.flysnow")
-		QUEUE_EXCHANGETYPE = FSConfig.StringDefault("queue.ExchangeType", "direct")
-	}
-}
 
 func NewBTree(persistence bool, name string) *FilterBtree {
 	fs := &FilterBtree{btree.NewBtree(32), 0, persistence, nil, sync.RWMutex{}}
 	if persistence {
 		if !FileOrPathIsExist(BTreeFilesPath) {
 			if err := CreatePathAll(BTreeFilesPath); err != nil {
-				Log.Error(fmt.Sprintf("init create btree file path error,path:%s,err:%v", BTreeFilesPath, err))
+				logrus.Fatalf("init create btree file path error,path:%s,err:%v", BTreeFilesPath, err)
 			}
 		}
 		f, err := os.OpenFile(filepath.Join(BTreeFilesPath, name), os.O_RDWR|os.O_CREATE, os.ModePerm)
 		if err != nil {
-			Log.Error(fmt.Sprintf("init btree file error,file:%s,err:%v", name, err))
+			logrus.Fatalf("init btree file error,file:%s,err:%v", name, err)
 		}
 		fs.f = f
 		fs.initBtreeByFile()
