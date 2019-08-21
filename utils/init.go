@@ -1,7 +1,6 @@
 package utils
 
 import (
-	// 	"code.google.com/p/log4go"
 	"errors"
 	"fmt"
 	"github.com/panjjo/flysnow/models"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/panjjo/log4go"
+	"github.com/sirupsen/logrus"
 )
 
 var Log LogS
@@ -115,6 +115,7 @@ type LogS struct {
 }
 
 func (l *LogS) Error(s string) {
+	logrus.a
 	l.ERROR.Print(s)
 	time.Sleep(1 * time.Second)
 	os.Exit(1)

@@ -1,0 +1,19 @@
+redis:
+  host: redis.base:6379      # redis 地址
+  maxConn: 100               # 最大连接数
+  db: 1                      # redis 存放db
+  prefix: fs                 # redis 数据前缀
+mongo:
+  host: mongodb://mongo.base:27017   # mongo地址
+  dupl: clone                        # mongo 连接方式
+  maxConn: 50                        # 最大连接数
+  prefix: FS                         # mongo 库名前缀
+rabbitmq:
+  queue: 1                                           # 是否开启队列接收数据
+  host: amqp://guest:guest@rabbitmq.base:5672/kabao  # 队列地址
+  name: flysnow                                      # 队列名称
+  exchange: topic.kabbao                             # exchange 名称
+  extype: topic                                      # exchange 类型
+logger: debug                                # 日志等级
+rotate:
+  auto: 0 0 3 * * *  # s min h d m week      # 自动归档定时

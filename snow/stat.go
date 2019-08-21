@@ -201,7 +201,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 		keymaps := map[int64][]interface{}{}
 		var dataTime int64
 		for _, data := range sortdata {
-			dataTime = data.(map[string]interface{})["s_time"].(int64)
+			dataTime = utils.TInt64(data.(map[string]interface{})["s_time"])
 			if _, ok := keymaps[dataTime]; !ok {
 				keymaps[dataTime] = []interface{}{data}
 			} else {
