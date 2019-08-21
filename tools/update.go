@@ -6,14 +6,15 @@ import (
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/tmp"
 	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2/bson"
-	"os"
 	"time"
 )
 
 var pool *ants.Pool
 
 func main() {
+	logrus.SetLevel(logrus.DebugLevel)
 	pool, _ = ants.NewPool(10)
 	updateToRelesase1200()
 }
@@ -31,18 +32,15 @@ type Indexs struct {
 // 从release1000升级到release1200
 func updateToRelesase1200() {
 	s:=time.Now()
-	PWD, _ := os.Getwd()
-	fmt.Println(PWD)
-	utils.FSConfig = utils.Config{}
-	utils.FSConfig.InitConfig(PWD + "/config/base.conf")
-	utils.FSConfig.SetMod("sys")
+	utils.LoacConfig()
 	tmp.Init()
 	for tag, terms := range models.TermConfigMap {
-		utils.MgoInit(tag)
+		fmt.Println("tag:",tag)
+		utils.MgoInit(utils.Config.Mgo)
 		for term, _ := range terms {
 			fmt.Println("start update tag:", tag, "term:", term)
-			ms := utils.MgoSessionDupl(tag).DB(models.MongoDT + tag)
-			msIndex := ms.C(models.MongoIndex + term)
+			ms := utils.MgoSessionDupl().DB(utils.MongoPrefix + tag)
+			msIndex := ms.C(utils.MongoIndex+ term)
 			var n int
 			for {
 				indexs := []Indexs{}
@@ -52,10 +50,10 @@ func updateToRelesase1200() {
 					break
 				}
 				ss := func() {
-					mss := utils.MgoSessionDupl(tag)
+					mss := utils.MgoSessionDupl()
 					defer mss.Close()
-					mssIndex := mss.DB(models.MongoDT + tag).C(models.MongoIndex + term)
-					mssObj := mss.DB(models.MongoDT + tag).C(models.MongoOBJ + term)
+					mssIndex := mss.DB(utils.MongoPrefix + tag).C(utils.MongoIndex + term)
+					mssObj := mss.DB(utils.MongoPrefix + tag).C(utils.MongoOBJ + term)
 					var objs []interface{}
 					newIndexs := []interface{}{}
 					for _, index := range indexs {

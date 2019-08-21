@@ -1,0 +1,45 @@
+kind: pipeline
+name: default
+workspace:
+  base: /go
+  path: src/gogs.yunss.com/go/flysnow
+
+steps:
+  - name: build
+    image: golang
+    environment:
+      GOPROXY: http://192.168.1.51:6500
+      GO111MODULE: on
+      GOCACHE: /cache
+      CGO_ENABLED: 0
+    commands:
+      - git submodule init 
+      - git submodule update 
+      - go run -v parser.go 
+      - go build -o srv main.go
+      - go build -o update tools/update.go
+    volumes:
+      - name: cache
+        path: /cache
+  - name: docker
+    image: plugins/docker
+    settings:
+      username: admin
+      password: Shengyun123
+      registry: harbor.yunss.com:5000
+      repo: harbor.yunss.com:5000/shanshou/flysnow
+      tags: test
+      insecure: true
+
+trigger:
+  branch:
+    - shanshou
+    - shanshou1000
+    - shanshou2000
+    - suyang
+    - qindao
+
+volumes:
+  - name: cache
+    host:
+      path: /var/cache/go

@@ -44,12 +44,12 @@ func (t *TMP) EXEC() (code int) {
 	}
 	t.WG.Wait()
 	if t.Code == 0 && len(t.Commods) != 0 {
-		go SendRdsCommands(t.Tag, t.Commods)
+		go SendRdsCommands(t.Commods)
 	}
 	return t.Code
 }
-func SendRdsCommands(tag string, commands []*utils.RdsSendStruct) {
-	conn := utils.NewRedisConn(tag)
+func SendRdsCommands(commands []*utils.RdsSendStruct) {
+	conn := utils.NewRedisConn()
 	defer conn.Close()
 	conn.Dos("MULTI")
 	defer conn.Dos("EXEC")

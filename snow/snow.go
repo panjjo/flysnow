@@ -3,6 +3,7 @@ package snow
 import (
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 	"strconv"
 	"sync"
 )
@@ -44,7 +45,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 	snowlock.l.Lock()
 	defer snowlock.l.Unlock()
 	if snowsys.RedisConn == nil {
-		snowsys.RedisConn = utils.NewRedisConn(snowsys.Tag)
+		snowsys.RedisConn = utils.NewRedisConn()
 		defer snowsys.RedisConn.Close()
 	}
 
@@ -59,18 +60,18 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 			rotateKey := sRotateKeyPre + utils.RandomTimeString()
 			_, err := snowsys.RedisConn.Dos("RENAME", snowsys.Key, rotateKey)
 			if err != nil {
-				log.ERROR.Printf("rotate rename fail,%s->%s,err:%v", snowsys.Key, rotateKey, err)
+				logrus.Errorf("rotate rename fail,%s->%s,err:%v", snowsys.Key, rotateKey, err)
 			}
 			snowsys.RedisConn.Dos("HMSET", rotateKey, "key", snowsys.Key, "tag", snowsys.Tag, "term", snowsys.Term)
 			// redis 队列存储需要归档的key，队列为左入
 			snowsys.RedisConn.Dos("LPUSH", rotateSetsKey, rotateKey)
-			log.DEBUG.Printf("need rotate key:%s,rename:%s", snowsys.Key, rotateKey)
+			logrus.Debugf("need rotate key:%s,rename:%s", snowsys.Key, rotateKey)
 			if !snowsys.SnowKey.KeyCheck {
 				// 非全局自检 新增一个key
 				end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 				start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 				snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-				log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
+				logrus.Debugf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
 			}
 		} else {
 			return
@@ -81,7 +82,7 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 		end := utils.DurationMap[snow.InterValDuration](now, snow.Interval)
 		start := utils.DurationMap[snow.InterValDuration+"l"](end, snow.Interval)
 		snowsys.RedisConn.Dos("HMSET", snowsys.Key, "s_time", start, "e_time", end)
-		log.DEBUG.Printf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
+		logrus.Debugf("new key:%s,s:%d,e:%d", snowsys.Key, start, end)
 	}
 	return
 }
@@ -97,6 +98,6 @@ func redisSpKey(data map[string]interface{}, snow *SnowSys) {
 		}
 	}
 	if len(commands) > 0 {
-		utils.RdsBatchCommands(snow.Tag, commands)
+		utils.RdsBatchCommands(commands)
 	}
 }

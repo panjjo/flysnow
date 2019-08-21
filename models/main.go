@@ -59,14 +59,7 @@ var SpKeyMap = map[string]string{
 	SPKEYLAST: "时间段内保留最后一个值",
 	SPKEYAVG:  "时间段内平均值",
 }
-// mongo数据库前缀，可通过配置文件配置
-var MongoDT = "FS"
-// redis数据前缀,可通过配置文件配置
-var RedisKT = "fs"
-// mongo 数据索引表前缀
-var MongoIndex = ""
-// mongo 数据元素表前缀
-var MongoOBJ = "obj"
+
 
 type LISTKV []struct {
 	Key   interface{} `json:"key"`

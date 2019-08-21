@@ -1,4 +1,5 @@
 # flysnow
+
 ## 运行
     配置好配置文件和统计项
     go run parser.go
@@ -6,26 +7,32 @@
 
 ## 配置文件
 
-  默认使用sys配置组
-  当单独配置数据源配置组时优先使用数据源数据组
+
   例如：
+
   
-      [sys]
-      redis.Host=127.0.0.1
-      redis.MaxPoolConn=100               #redis链接池最大链接数 默认为10
-      redis.MaxActive=100                 #redis连接池最大活跃链接数 默认为0不限制
-      mgo.Host=mongodb://127.0.0.1:27017  #mgo地址
-      mgo.Dupl=clone                      #mgo session生成方式 clone copy new 默认为clone
-      filter.save =0                      #过滤数据是否永久存储,0 重启清空，1 永久存储 默认0 只能设置sys不能单独设置
-      [order]
-      redis.Host=127.0.0.1
-      redis.MaxPoolConn=100               #redis链接池最大链接数 默认为10
-      redis.MaxActive=100                 #redis连接池最大活跃链接数 默认为0不限制
-      mgo.Host=mongodb://127.0.0.1:27017  #mgo地址
-      mgo.Dupl=clone                      #mgo session生成方式 clone copy new 默认为clone
+        redis:
+          host: redis.base:6379      # redis 地址
+          maxConn: 100               # 最大连接数
+          db: 1                      # redis 存放db
+          prefix: fs                 # redis 数据前缀
+        mongo:
+          host: mongodb://mongo.base:27017   # mongo地址
+          dupl: clone                        # mongo 连接方式
+          prefix: FS                         # mongo 库名前缀
+        rabbitmq:
+          queue: 1                                           # 是否开启队列接收数据
+          host: amqp://guest:guest@rabbitmq.base:5672/kabao  # 队列地址
+          name: flysnow                                      # 队列名称
+          exchange: topic.kabbao                             # exchange 名称
+          extype: topic                                      # exchange 类型
+        autoRotate: 0 0 3 * * *  # s min h d m week        # 自动归档定时
+        maxRotateNums: 20                                  # 最大自动归档并发数
+        datapath: ./btreefiles                             # 永久存储btree文件存放目录
+        logger: debug                                      # 日志等级
+        listen: 0.0.0.0:22258                              # 监听地址和端口
       
-  请求数据源为order时优先使用order组配置，请求数据源为trade时则用sys组配置
-  redis，mongo配置项为每组配置单独使用
+
 
 ## 统计项配置
 
@@ -56,14 +63,6 @@
              "member_num":"float64",
              "items":"$listkv"             #$开头的为系统自定义结构(详情看 数据类型)
              }
-           "filter":[                       #自定义过滤器
-             {
-               "name":"order_filter",       #过滤器名称
-               "offset":120,                #数据失效时长 和duration同时使用,设置为0标识永不失效
-               "whence":0,                  #时长计算类型 (详情看 过滤器定制)
-               "duration":"s"               #时长单位 s 秒 h 小时 d 天 m 月 y 年
-               }
-             ]
          }
       xxx.json
          {
@@ -107,7 +106,16 @@
                "timeout":1,
                "timeoutduration":"m"
              }
-           ]                                #此配置可查询此项统计数据1天(24小时)内任意小时的数据，查询一个月(30天)内任意天的数据，一个月以前的数据只能查看一个总数
+           ],                                #此配置可查询此项统计数据1天(24小时)内任意小时的数据，查询一个月(30天)内任意天的数据，一个月以前的数据只能查看一个总数
+          "filter":[                       #自定义过滤器
+            {
+              "name":"order_filter",       #过滤器名称
+              "offset":120,                #数据失效时长 和duration同时使用,设置为0标识永不失效
+              "whence":0,                  #时长计算类型 (详情看 过滤器定制)
+              "duration":"s",              #时长单位 s 秒 h 小时 d 天 m 月 y 年
+              "persistence":true           #是否永久存储，true：永久存储 存储硬盘启动是从硬盘加载数据，false：每次启动创建一个空过滤器
+              }
+            ]
          }
 
 ## 数据类型

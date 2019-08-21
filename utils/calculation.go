@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 )
@@ -182,7 +183,7 @@ func DataFilter(data map[string]interface{}, filter map[string]interface{}) bool
 						}
 					}
 				default:
-					Log.ERROR.Println(n, f)
+					logrus.Errorln(n, f)
 				}
 				return true
 			}
