@@ -1,9 +1,9 @@
 package snow
 
 import (
+	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
-	"fmt"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -25,14 +25,14 @@ func Clear(body []byte) (error, int) {
 	if err != nil {
 		return err, models.ErrData
 	}
-	//解析需要清理的统计项
+	// 解析需要清理的统计项
 	var find bool
 	var rdskey string
 	var query bson.M
 	for tag, terms := range req.TagTerms {
 		for _, term := range terms {
 			if termconfig, ok := models.TermConfigMap[tag][term]; ok {
-				rdskey = fmt.Sprintf("%s_%s_*", models.RedisKT, tag)
+				rdskey = fmt.Sprintf("%s_%s_*", utils.RDSPrefix, tag)
 				query = bson.M{}
 				for key, value := range req.Query {
 					find = false
@@ -57,17 +57,17 @@ func Clear(body []byte) (error, int) {
 	var key string
 
 	for _, clear := range list {
-		session := utils.MgoSessionDupl(clear.Tag)
-		//clear redis
-		rdsconn := utils.NewRedisConn(clear.Tag)
+		session := utils.MgoSessionDupl()
+		// clear redis
+		rdsconn := utils.NewRedisConn()
 		keys, _ := rdsconn.Dos("KEYS", clear.RdsKey)
 		for _, k := range keys.([]interface{}) {
 			key = string(k.([]byte))
 			rdsconn.Dos("DEL", key)
 		}
 		rdsconn.Close()
-		//clear mongo
-		session.DB(models.MongoDT + clear.Tag).C(clear.Term).RemoveAll(clear.MongoQuery)
+		// clear mongo
+		session.DB(utils.MongoPrefix + clear.Tag).C(clear.Term).RemoveAll(clear.MongoQuery)
 		session.Close()
 
 	}

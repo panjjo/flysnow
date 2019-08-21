@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"strconv"
@@ -104,13 +105,13 @@ func autoRotate() {
 	var tk string
 	var tl, ks []string
 	now := utils.GetNowSec()
-	log.INFO.Println("Do rds'key rollback", utils.Sec2Str("2006-01-02 15:04", now))
-	rdsconn = utils.NewRedisConn(models.TagList[0])
+	logrus.Infoln("Do rds'key rollback", utils.Sec2Str("2006-01-02 15:04", now))
+	rdsconn = utils.NewRedisConn()
 	defer rdsconn.Close()
 	curr = startCurr
 	keys = []interface{}{}
 	for {
-		result, _ = rdsconn.Dos("SCAN", curr, "MATCH", models.RedisKT+"_*")
+		result, _ = rdsconn.Dos("SCAN", curr, "MATCH", utils.RDSPrefix+"_*")
 		data = result.([]interface{})
 		if len(data) != 2 {
 			break
@@ -123,7 +124,7 @@ func autoRotate() {
 			break
 		}
 	}
-	log.INFO.Println("wait rotate keys len:", len(keys))
+	logrus.Infoln("wait rotate keys len:", len(keys))
 	for i, k := range keys {
 		tk = string(k.([]byte))
 		tl = strings.Split(tk, "_")
@@ -134,7 +135,7 @@ func autoRotate() {
 				i += 1
 			}
 		}
-		log.DEBUG.Printf("auto rotate index:%d, key:%s,tag:%s", i, tk, tl[1])
+		logrus.Debugf("auto rotate index:%d, key:%s,tag:%s", i, tk, tl[1])
 		for term, config := range models.TermConfigMap[tl[1]] {
 			if strings.Join(config.Key, "_") == strings.Join(ks, "_") {
 				newSnow := &SnowSys{
@@ -157,8 +158,8 @@ func autoRotate() {
 
 // 如果归档数据从归档集合中取出，在work过程中意外退出，此方法检测意外退出的key，并使其继续归档
 func repairRotate() {
-	log.DEBUG.Print("repair Rotate")
-	redisConn := utils.NewRedisConn(models.TagList[0])
+	logrus.Debug("repair Rotate")
+	redisConn := utils.NewRedisConn()
 	defer redisConn.Close()
 	startCurr := "0"
 	curr := startCurr
@@ -177,7 +178,7 @@ func repairRotate() {
 				continue
 			}
 			v = append([]interface{}{rotateSetsKey}, v...)
-			log.DEBUG.Printf("repair Rotate Keys:%v", v)
+			logrus.Debugf("repair Rotate Keys:%v", v)
 			redisConn.Dos("LPUSH", v...)
 		}
 		if curr == startCurr {
@@ -196,14 +197,14 @@ func lsrRotate() {
 }
 
 func rotate() {
-	redisConn := utils.NewRedisConn(models.TagList[0])
+	redisConn := utils.NewRedisConn()
 	defer func() {
 		haveRotatePro = false
 		redisConn.Close()
-		log.INFO.Print("stop rotate process")
+		logrus.Info("stop rotate process")
 	}()
 	haveRotatePro = true
-	log.INFO.Print("start rotate process")
+	logrus.Info("start rotate process")
 	var result interface{}
 	var err error
 	var b interface{}
@@ -213,7 +214,7 @@ func rotate() {
 		// 取出集合中的待归档key，从右侧取出（左入右出）
 		result, err = redisConn.Dos("RPOP", rotateSetsKey)
 		if err != nil {
-			log.ERROR.Printf("get rotate key err:%v", err)
+			logrus.Errorf("get rotate key err:%v", err)
 			return
 		}
 		if result == nil {
@@ -228,12 +229,12 @@ func rotate() {
 		sourceKey = string(result.([]uint8))
 		b, _ = redisConn.Dos("HGETALL", sourceKey)
 		if b == nil {
-			log.ERROR.Printf("rotate key:%s,data is nil", sourceKey)
+			logrus.Errorf("rotate key:%s,data is nil", sourceKey)
 			continue
 		}
 		tb := b.([]interface{})
 		if len(tb) == 0 {
-			log.ERROR.Printf("rotate key:%s end,data is empty", sourceKey)
+			logrus.Errorf("rotate key:%s end,data is empty", sourceKey)
 			continue
 		}
 		rotateDo(tb, sourceKey)
@@ -264,13 +265,13 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 		}
 		rotateKeyLock.GetSet(key)
 		defer rotateKeyLock.Del(key)
-		log.DEBUG.Printf("start rotate ,sourcekey %s,key:%s,tag:%s,term:%s", sourceKey, key, tag, term)
+		logrus.Debugf("start rotate ,sourcekey %s,key:%s,tag:%s,term:%s", sourceKey, key, tag, term)
 		snowCfg := models.TermConfigMap[tag][term]
 		snowsys := &SnowSys{
 			&utils.SnowKey{
 				key, utils.GetIndexBySKey(key), false,
 			},
-			utils.NewRedisConn(tag),
+			utils.NewRedisConn(),
 			tag,
 			term,
 			utils.GetNowSec(),
@@ -281,15 +282,15 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 			snowsys.RedisConn.Close()
 		}()
 
-		session := utils.MgoSessionDupl(tag)
+		session := utils.MgoSessionDupl()
 		defer session.Close()
 
 		// 特殊key处理
 		redisSpKey(redisData, snowsys)
 
 		// 索引数据
-		mcIndex := session.DB(models.MongoDT + tag).C(models.MongoIndex + term)
-		mcObj := session.DB((models.MongoDT + tag)).C(models.MongoOBJ + term)
+		mcIndex := session.DB(utils.MongoPrefix + tag).C(utils.MongoIndex + term)
+		mcObj := session.DB((utils.MongoPrefix + tag)).C(utils.MongoOBJ + term)
 
 		// 存储归档集合的开始时间，用作下一个归档集合的结束时间
 		var startTime, endTime int64
@@ -304,9 +305,9 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 			// 获取索引数据
 			if err := mcIndex.Find(bson.M{"key": key}).One(&mongoIndex); err != nil {
 				if err != mgo.ErrNotFound {
-					log.ERROR.Printf("rotate get mgo key:%s,err:%v", key, err)
+					logrus.Errorf("rotate get mgo key:%s,err:%v", key, err)
 				} else {
-					log.DEBUG.Printf("rotate get mgo notfound key:%s", key)
+					logrus.Debugf("rotate get mgo notfound key:%s", key)
 				}
 			}
 			// 用来存放需要下一个归档等级的数据
@@ -327,7 +328,7 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 						mongoIndex.ETime = endTime
 						mongoIndex.STime = utils.DurationMap[snow.TimeoutDuration+"l"](mongoIndex.ETime, snow.Timeout)
 					}
-					log.DEBUG.Printf("rotate save obj:%+v", key)
+					logrus.Debugf("rotate save obj:%+v", key)
 					// 写入此数据
 					if err := mongoObjInsert(mcObj, map[string]interface{}{
 						"s_time": startTime,
@@ -335,7 +336,7 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 						"key":    key,
 						"index":  snowsys.Index,
 					}, data); err != nil {
-						log.ERROR.Printf("rotate save obj err:%v", err)
+						logrus.Errorf("rotate save obj err:%v", err)
 					}
 				}
 			}
@@ -344,12 +345,12 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 				mongoIndex.Key = key
 				mongoIndex.Index = snowsys.Index
 			}
-			log.DEBUG.Printf("rotate save index,key:%s", mongoIndex.Key)
+			logrus.Debugf("rotate save index,key:%s", mongoIndex.Key)
 			mongoIndexUpsert(mcIndex, mongoIndex)
 			// 更新索引之后 查询当前归档等级，需要归档到下一个等级的数据
 			datas, err := mongoObjFind(mcObj, bson.M{"key": key, "s_time": bson.M{"$lt": mongoIndex.STime}})
 			if err != nil {
-				log.ERROR.Printf("rotate find data from mongo fail,err:%v", err)
+				logrus.Errorf("rotate find data from mongo fail,err:%v", err)
 			}
 			for _, data := range datas {
 				tmpList = append(tmpList, data)
@@ -362,7 +363,7 @@ func rotateDo(sourceData []interface{}, sourceKey string) {
 		}
 
 		if len(rotatedata) > 0 {
-			log.INFO.Printf("rotate last snow. term:%s-%s,key:%s,data:%v", snowsys.Tag, snowsys.Term, snowsys.SnowKey.Key, rotatedata)
+			logrus.Infof("rotate last snow. term:%s-%s,key:%s,data:%v", snowsys.Tag, snowsys.Term, snowsys.SnowKey.Key, rotatedata)
 			tmp := bson.M{}
 			for _, v := range rotatedata {
 				for k1, v1 := range v {
