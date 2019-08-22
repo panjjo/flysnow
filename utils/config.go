@@ -32,8 +32,8 @@ func LoacConfig() {
 	viper.SetDefault("listen", ":22258")
 	viper.SetDefault("maxRotateNums", 50)
 
-	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
 	if err != nil {
 		logrus.Fatalln("init config error:", err)
