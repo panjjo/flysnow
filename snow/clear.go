@@ -67,7 +67,8 @@ func Clear(body []byte) (error, int) {
 		}
 		rdsconn.Close()
 		// clear mongo
-		session.DB(utils.MongoPrefix + clear.Tag).C(clear.Term).RemoveAll(clear.MongoQuery)
+		session.DB(utils.MongoPrefix + clear.Tag).C(utils.MongoIndex + clear.Term).RemoveAll(clear.MongoQuery)
+		session.DB(utils.MongoPrefix + clear.Tag).C(utils.MongoOBJ + clear.Term).RemoveAll(clear.MongoQuery)
 		session.Close()
 
 	}
