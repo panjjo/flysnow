@@ -26,9 +26,6 @@ func LoacConfig() {
 	viper.SetDefault("logger", "debug")
 	viper.SetDefault("dataPath", "./btreefiles")
 	viper.SetDefault("autoRotate", "0 0 1 * * *")
-	viper.SetDefault("rabbitmq", DefaultMQConfig)
-	viper.SetDefault("redis", DefaultRDSConfig)
-	viper.SetDefault("mongo", DefaultMgoConfig)
 	viper.SetDefault("listen", ":22258")
 	viper.SetDefault("maxRotateNums", 50)
 
