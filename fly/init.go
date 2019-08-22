@@ -33,18 +33,36 @@ func Init() {
 	// calculation
 	handle := &Calculation{}
 	stat := &Statistics{}
-	utils.InitRedis(utils.Config.RDS)
-	utils.MgoInit(utils.Config.Mgo)
+	utils.InitRedis(&utils.Config.RDS)
+	utils.MgoInit(&utils.Config.Mgo)
 	for _, tag := range models.TagList {
 		handleFuncs[2][tag] = handle
 		handleFuncs[1][tag] = stat
-
 	}
+	// 初始化数据库索引
+	// 系统索引
+	logrus.Info("init mongo index...")
+	mgosess := utils.MgoSessionDupl()
+	for tag, terms := range models.TermConfigMap {
+		for _, term := range terms {
+			indexTable := mgosess.DB(utils.MongoPrefix + tag).C(utils.MongoIndex + term.Name)
+			for _, keys := range utils.DefaultMgoIndexs {
+				indexTable.EnsureIndexKey(keys...)
+			}
+			objTable := mgosess.DB(utils.MongoPrefix + tag).C(utils.MongoOBJ + term.Name)
+			for _, keys := range utils.DefaultMgoObjIndexs {
+				objTable.EnsureIndexKey(keys...)
+			}
+		}
+	}
+	mgosess.Close()
+	logrus.Info("mongo index end")
+
 	ConnRespChannel = make(chan *connResp, 100)
 	snow.Init()
 	// 启动rabbitmq 监听
 	if utils.Config.MQ.Open {
-		utils.InitMQ(utils.Config.MQ)
+		utils.InitMQ(&utils.Config.MQ)
 		go func() {
 			for {
 				pch, err := utils.MQDef.Consume(utils.Config.MQ.Name, "A", utils.Config.MQ.Name)

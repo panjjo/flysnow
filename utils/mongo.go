@@ -21,6 +21,15 @@ var DefaultMgoConfig *MgoConfig = &MgoConfig{
 	Prefix: "FS",
 }
 
+var DefaultMgoIndexs [][]string = [][]string{
+	[]string{"key"},
+}
+var DefaultMgoObjIndexs [][]string = [][]string{
+	[]string{"key"},
+	[]string{"key", "s_time"},
+	[]string{"key", "s_time", "e_time"},
+}
+
 type MgoConfig struct {
 	Host   string `json:"host" yaml:"host" mapstructure:"host"`
 	Dupl   string `json:"dupl" yaml:"mongo" mapstructure:"dupl"`
