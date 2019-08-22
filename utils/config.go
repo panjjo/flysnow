@@ -7,9 +7,9 @@ import (
 )
 
 type config struct {
-	MQ            *RabbitmqConfig `json:"rabbitmq" yaml:"rabbitmq" mapstructure:"rabbitmq"`
-	RDS           *RDSConfig      `json:"redis" yaml:"redis" mapstructure:"redis"`
-	Mgo           *MgoConfig      `json:"mongo" yaml:"mongo" mapstructure:"mongo"`
+	MQ            RabbitmqConfig `json:"rabbitmq" yaml:"rabbitmq" mapstructure:"rabbitmq"`
+	RDS           RDSConfig      `json:"redis" yaml:"redis" mapstructure:"redis"`
+	Mgo           MgoConfig      `json:"mongo" yaml:"mongo" mapstructure:"mongo"`
 	LogLevel      string          `json:"logger" yaml:"logger" mapstructure:"logger"`
 	AutoRotate    string          `json:"autoRotate" yaml:"autoRotate" mapstructure:"autoRotate"`
 	DataPath      string          `json:"dataPath" yaml:"dataPath" mapstructure:"dataPath"`
