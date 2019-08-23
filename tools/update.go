@@ -36,7 +36,7 @@ func updateToRelesase1200() {
 	tmp.Init()
 	for tag, terms := range models.TermConfigMap {
 		fmt.Println("tag:",tag)
-		utils.MgoInit(utils.Config.Mgo)
+		utils.MgoInit(&utils.Config.Mgo)
 		for term, _ := range terms {
 			fmt.Println("start update tag:", tag, "term:", term)
 			ms := utils.MgoSessionDupl().DB(utils.MongoPrefix + tag)
