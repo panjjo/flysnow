@@ -70,9 +70,6 @@ func (u *TimeID) Start() error {
 			<-t.C
 		}
 	}()
-	for u.c == nil {
-		time.Sleep(1 * time.Millisecond)
-	}
 	return nil
 }
 func (u *TimeID) Next() string {
