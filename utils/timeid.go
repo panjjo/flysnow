@@ -79,6 +79,7 @@ func (u *TimeID) Next() string {
 var _systemID *TimeID
 
 func init() {
+	fmt.Println("---------------")
 	_systemID = NewTimeID(10)
 	_systemID.Start()
 }
@@ -86,4 +87,3 @@ func init() {
 func RandomTimeString() string {
 	return _systemID.Next()
 }
-
