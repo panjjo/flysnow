@@ -8,7 +8,6 @@ import (
 	"sync"
 )
 
-
 var BTreeFilesPath = "./btreefiles"
 
 type FilterBtreeItem struct {
@@ -34,22 +33,30 @@ type FilterBtree struct {
 }
 
 func (fb *FilterBtree) Get(key string) FilterBtreeItem {
+	fb.rwmutex.RLock()
+	defer fb.rwmutex.RUnlock()
 	if res := fb.b.Get(FilterBtreeItem{Key: key}); res != nil {
 		return res.(FilterBtreeItem)
 	}
 	return FilterBtreeItem{}
 }
 func (fb *FilterBtree) Set(item FilterBtreeItem) {
+	fb.rwmutex.Lock()
 	fb.b.ReplaceOrInsert(item)
+	fb.rwmutex.Unlock()
 }
 func (fb *FilterBtree) GetSet(item FilterBtreeItem) (resu FilterBtreeItem, update bool) {
+	fb.rwmutex.Lock()
 	item.Offset = fb.offset
 	if res := fb.b.ReplaceOrInsert(item); res != nil {
 		resu = res.(FilterBtreeItem)
 		update = true
 		item.Offset = resu.Offset
 	}
-	fb.writeFile(item)
+	if fb.save {
+		fb.writeFile(item)
+	}
+	fb.rwmutex.Unlock()
 	return
 }
 func (fb *FilterBtree) initBtreeByFile() {
@@ -86,8 +93,6 @@ func (fb *FilterBtree) initBtreeByFile() {
 func (fb *FilterBtree) writeFile(item FilterBtreeItem) {
 	var offset int64
 	if fb.save {
-		fb.rwmutex.Lock()
-		defer fb.rwmutex.Unlock()
 		b := append([]byte(item.Key), Int64ToBytes(item.T)...)
 		b = append(IntToBytes(len(b)), b...)
 		if item.Offset < fb.offset {
@@ -102,9 +107,8 @@ func (fb *FilterBtree) writeFile(item FilterBtreeItem) {
 	}
 }
 
-
 func NewBTree(persistence bool, name string) *FilterBtree {
-	fs := &FilterBtree{btree.NewBtree(32), 0, persistence, nil, sync.RWMutex{}}
+	fs := &FilterBtree{btree.New(32), 0, persistence, nil, sync.RWMutex{}}
 	if persistence {
 		if !FileOrPathIsExist(BTreeFilesPath) {
 			if err := CreatePathAll(BTreeFilesPath); err != nil {
