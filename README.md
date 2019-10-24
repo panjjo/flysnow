@@ -62,7 +62,16 @@
              "day_total":"float64",
              "member_num":"float64",
              "items":"$listkv"             #$开头的为系统自定义结构(详情看 数据类型)
-             }
+             },
+           "filter":[                       #自定义过滤器
+             {
+               "name":"order_filter",       #过滤器名称
+               "offset":120,                #数据失效时长 和duration同时使用,设置为0标识永不失效
+               "whence":0,                  #时长计算类型 (详情看 过滤器定制)
+               "duration":"s",              #时长单位 s 秒 h 小时 d 天 m 月 y 年
+               "persistence":true           #是否永久存储，true：永久存储 存储硬盘启动是从硬盘加载数据，false：每次启动创建一个空过滤器
+               }
+             ]
          }
       xxx.json
          {
@@ -107,15 +116,7 @@
                "timeoutduration":"m"
              }
            ],                                #此配置可查询此项统计数据1天(24小时)内任意小时的数据，查询一个月(30天)内任意天的数据，一个月以前的数据只能查看一个总数
-          "filter":[                       #自定义过滤器
-            {
-              "name":"order_filter",       #过滤器名称
-              "offset":120,                #数据失效时长 和duration同时使用,设置为0标识永不失效
-              "whence":0,                  #时长计算类型 (详情看 过滤器定制)
-              "duration":"s",              #时长单位 s 秒 h 小时 d 天 m 月 y 年
-              "persistence":true           #是否永久存储，true：永久存储 存储硬盘启动是从硬盘加载数据，false：每次启动创建一个空过滤器
-              }
-            ]
+
          }
 
 ## 数据类型

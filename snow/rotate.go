@@ -164,7 +164,7 @@ func repairRotate() {
 	startCurr := "0"
 	curr := startCurr
 	for {
-		result, _ := redisConn.Dos("SCAN", curr, "MATCH", sRotateKeyPre+"*")
+		result, _ := redisConn.Dos("SCAN", curr, "MATCH", utils.SRotateKeyPre+"*")
 		data := result.([]interface{})
 		if len(data) != 2 {
 			break
@@ -177,7 +177,7 @@ func repairRotate() {
 				}
 				continue
 			}
-			v = append([]interface{}{rotateSetsKey}, v...)
+			v = append([]interface{}{utils.RotateSetsKey}, v...)
 			logrus.Debugf("repair Rotate Keys:%v", v)
 			redisConn.Dos("LPUSH", v...)
 		}
@@ -212,7 +212,7 @@ func rotate() {
 	first := true
 	for {
 		// 取出集合中的待归档key，从右侧取出（左入右出）
-		result, err = redisConn.Dos("RPOP", rotateSetsKey)
+		result, err = redisConn.Dos("RPOP", utils.RotateSetsKey)
 		if err != nil {
 			logrus.Errorf("get rotate key err:%v", err)
 			return

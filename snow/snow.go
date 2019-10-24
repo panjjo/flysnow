@@ -17,8 +17,6 @@ type SnowSys struct {
 }
 
 var snowlock rwmutex
-var rotateSetsKey = "ROTATEKEYS"
-var sRotateKeyPre = "rotate_"
 
 type rwmutex struct {
 	l *sync.Mutex
@@ -57,14 +55,14 @@ func NeedRotate(snowsys *SnowSys, snow models.Snow) {
 			// 正常rotate 新来数据时间>redis的结束时间 生成新的一条
 			// 旧数据rotate  新来数据时间<= redis的开始时间 讲现有数据rotate ,生成老数据对应的redis数据
 			// 对于数据造成的同个snow有多条数据，在mongo rotate是进行合并
-			rotateKey := sRotateKeyPre + utils.RandomTimeString()
+			rotateKey := utils.SRotateKeyPre + utils.RandomTimeString()
 			_, err := snowsys.RedisConn.Dos("RENAME", snowsys.Key, rotateKey)
 			if err != nil {
 				logrus.Errorf("rotate rename fail,%s->%s,err:%v", snowsys.Key, rotateKey, err)
 			}
 			snowsys.RedisConn.Dos("HMSET", rotateKey, "key", snowsys.Key, "tag", snowsys.Tag, "term", snowsys.Term)
 			// redis 队列存储需要归档的key，队列为左入
-			snowsys.RedisConn.Dos("LPUSH", rotateSetsKey, rotateKey)
+			snowsys.RedisConn.Dos("LPUSH", utils.RotateSetsKey, rotateKey)
 			logrus.Debugf("need rotate key:%s,rename:%s", snowsys.Key, rotateKey)
 			if !snowsys.SnowKey.KeyCheck {
 				// 非全局自检 新增一个key
