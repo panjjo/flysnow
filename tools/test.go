@@ -11,8 +11,8 @@ import (
 func main() {
 
 	// query()
-	// send()
-	btree()
+	send()
+	// btree()
 }
 
 func btree() {

@@ -11,8 +11,12 @@ const (
 	RDSHINCRBYFLOAT = "HINCRBYFLOAT"
 )
 
+// redis key前缀
 var RDSPrefix string
-
+// 等待归档key集合
+var RotateSetsKey string = "ROTATEKEYS"
+// 等待归档单条源数据key前缀
+var SRotateKeyPre string = "rotate_"
 var DefaultRDSConfig *RDSConfig = &RDSConfig{
 	Host:    "redis.base:6379",
 	MaxConn: 100,

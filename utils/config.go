@@ -49,4 +49,6 @@ func LoacConfig() {
 	logrus.SetLevel(level)
 	MongoPrefix = Config.Mgo.Prefix
 	RDSPrefix = Config.RDS.Prefix
+	RotateSetsKey = Config.RDS.Prefix + RotateSetsKey
+	SRotateKeyPre = Config.RDS.Prefix + SRotateKeyPre
 }
