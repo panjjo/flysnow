@@ -26,3 +26,5 @@ require (
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce
 	honnef.co/go/tools v0.0.0-20181108184350-ae8f1f9103cc // indirect
 )
+
+go 1.13
