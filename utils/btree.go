@@ -1,11 +1,12 @@
 package utils
 
 import (
-	"github.com/panjjo/flysnow/utils/btree"
-	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/panjjo/flysnow/utils/btree"
+	"github.com/sirupsen/logrus"
 )
 
 var BTreeFilesPath = "./btreefiles"
@@ -75,7 +76,7 @@ func (fb *FilterBtree) initBtreeByFile() {
 					break
 				}
 				bodylen := BytesToInt(nocom[0:4])
-				if len(nocom[4:]) < bodylen {
+				if len(nocom[4:]) <= bodylen {
 					break
 				}
 				fb.Set(FilterBtreeItem{Offset: fb.offset, Key: string(nocom[4 : bodylen-4]), T: BytesToInt64(nocom[bodylen-4 : bodylen+4])})
