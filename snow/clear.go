@@ -2,6 +2,7 @@ package snow
 
 import (
 	"fmt"
+
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/utils"
 
@@ -11,6 +12,8 @@ import (
 type ClearReq struct {
 	TagTerms map[string][]string `json:"tag_terms" `
 	Query    bson.M              `json:"query"`
+	STime    int64               `json:"s_time"`
+	ETime    int64               `json:"e_time"`
 }
 type clearList struct {
 	Tag, Term  string
@@ -48,6 +51,15 @@ func Clear(body []byte) (error, int) {
 					}
 				}
 				rdskey += "*"
+				if req.STime > 0 {
+					query["s_time"] = bson.M{"$gte": req.STime}
+				}
+				if req.ETime > 0 {
+					if req.ETime <= req.STime {
+						return models.ErrNew(fmt.Sprintf("start >= etime", req.STime, req.ETime)), models.ErrClear
+					}
+					query["e_time"] = bson.M{"$lte": req.ETime}
+				}
 				list = append(list, clearList{tag, term, rdskey, query})
 			} else {
 				return models.ErrNew(fmt.Sprintf("%s-%s not found", tag, term)), models.ErrClear
