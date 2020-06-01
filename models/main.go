@@ -11,6 +11,14 @@ var (
 var TagList []string
 var TermConfigMap map[string]map[string]*TermConfig
 
+const (
+	OPCHECK  = 0
+	OPQUERY  = 1
+	OPSTAT   = 2
+	OPCLEAR  = 3
+	OPROTATE = 4
+)
+
 type EventErr struct {
 	Code int
 	Msg  string
@@ -60,7 +68,6 @@ var SpKeyMap = map[string]string{
 	SPKEYAVG:  "时间段内平均值",
 }
 
-
 type LISTKV []struct {
 	Key   interface{} `json:"key"`
 	Value interface{} `json:"value"`
@@ -81,11 +88,11 @@ type Json struct {
 	Term    []Term      `json:"terms"`
 }
 type FSFilter struct {
-	Name     string
-	OffSet   int64
-	Whence   int
-	Duration string
-	Persistence  bool `json:"persistence"`
+	Name        string
+	OffSet      int64
+	Whence      int
+	Duration    string
+	Persistence bool `json:"persistence"`
 }
 type Term struct {
 	Name   string

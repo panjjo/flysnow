@@ -1,17 +1,18 @@
 package fly
 
 import (
+	"runtime"
+	"time"
+
 	"github.com/panjjo/flysnow/models"
 	"github.com/panjjo/flysnow/snow"
 	"github.com/panjjo/flysnow/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"runtime"
-	"time"
 )
 
 var (
-	handleFuncs map[int]map[string]ListenChanFunc
+	handleFuncs map[int]ListenChanFunc
 )
 
 type ListenChanFunc interface {
@@ -23,22 +24,16 @@ func Init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	ConnMaps = ConnMapStruct{m: map[string]*ConnStruct{}}
-
-	handleFuncs = map[int]map[string]ListenChanFunc{
-		0: map[string]ListenChanFunc{},                  // Ping
-		1: map[string]ListenChanFunc{},                  // 统计
-		2: map[string]ListenChanFunc{},                  // 计算
-		3: map[string]ListenChanFunc{"clear": &Clear{}}, // Clear
+	handleFuncs = map[int]ListenChanFunc{
+		models.OPCHECK:  &HeartBeat{},   // Ping
+		models.OPQUERY:  &Statistics{},  // 统计
+		models.OPSTAT:   &Calculation{}, // 计算
+		models.OPCLEAR:  &Clear{},       // Clear
+		models.OPROTATE: &Rotate{},      // rotate
 	}
-	// calculation
-	handle := &Calculation{}
-	stat := &Statistics{}
 	utils.InitRedis(&utils.Config.RDS)
 	utils.MgoInit(&utils.Config.Mgo)
-	for _, tag := range models.TagList {
-		handleFuncs[2][tag] = handle
-		handleFuncs[1][tag] = stat
-	}
+
 	// 初始化数据库索引
 	// 系统索引
 	logrus.Info("init mongo index...")
@@ -79,11 +74,7 @@ func Init() {
 							return
 						}
 						if fs, ok := handleFuncs[data.Op]; ok {
-							if f, ok := fs[data.Tag]; ok {
-								f.reader(data)
-							} else {
-								logrus.Warnf("Queue data tag not found ,op:%s,tag:%s", data.Op, data.Tag)
-							}
+							fs.reader(data)
 						} else {
 							logrus.Warnf("Queue data op not found ,op:%s", data.Op)
 						}

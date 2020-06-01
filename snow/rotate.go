@@ -2,15 +2,16 @@ package snow
 
 import (
 	"fmt"
-	"github.com/panjjo/flysnow/models"
-	"github.com/panjjo/flysnow/utils"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
+	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type SnowData struct {
@@ -94,8 +95,8 @@ func rotateObj(from, to map[string]interface{}, spkey map[string]string) map[str
 	return to
 }
 
-// rds key rotate 每天定时归档需要归档的数据（有些数据后面没请求，不会触发归档，所以每天自动检测归档）
-func autoRotate() {
+// rds key rotate 归档需要归档的数据
+func AutoRotate() {
 	var result interface{}
 	var startCurr, curr string
 	var data []interface{}

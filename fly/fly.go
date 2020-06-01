@@ -2,13 +2,13 @@ package fly
 
 import (
 	"encoding/hex"
-	"github.com/panjjo/flysnow/models"
-	"github.com/panjjo/flysnow/utils"
-	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net"
 	"sync"
-	"time"
+
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -206,35 +206,17 @@ func Unpack(buffer []byte, conn *ConnStruct) []byte {
 			}
 			body := buffer[cursor-bodylen : cursor]
 			cursor += RespLength
+			// check op
 			if v, ok := handleFuncs[op]; !ok {
 				ConnRespChannel <- &connResp{conn.connid, models.ErrOpId, nil}
 			} else {
-				rand.Seed(time.Now().UnixNano())
-				// check heardbeat
-				if op == 0 {
-					ConnRespChannel <- &connResp{conn.connid, 0, nil}
-				} else if op == 3 {
-					go v["clear"].reader(&BodyData{
-						Op:       op,
-						Body:     body,
-						Connid:   conn.connid,
-						Tag:      string(tagdata),
-						NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
-					})
-				} else {
-					if cal, ok := v[string(tagdata)]; ok {
-						// check heardbeat
-						go cal.reader(&BodyData{
-							Op:       op,
-							Body:     body,
-							Connid:   conn.connid,
-							Tag:      string(tagdata),
-							NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
-						})
-					} else {
-						ConnRespChannel <- &connResp{conn.connid, models.ErrMethodNotFount, nil}
-					}
-				}
+				v.reader(&BodyData{
+					Op:       op,
+					Body:     body,
+					Connid:   conn.connid,
+					Tag:      string(tagdata),
+					NeedResp: utils.BytesToInt(buffer[cursor-RespLength : cursor]),
+				})
 			}
 		}
 		i = cursor - 1

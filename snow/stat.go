@@ -2,12 +2,13 @@ package snow
 
 import (
 	"fmt"
-	"github.com/panjjo/flysnow/models"
-	"github.com/panjjo/flysnow/utils"
-	"github.com/sirupsen/logrus"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/panjjo/flysnow/models"
+	"github.com/panjjo/flysnow/utils"
+	"github.com/sirupsen/logrus"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -93,7 +94,7 @@ func Stat(d []byte, tag string) (error, interface{}) {
 	}
 	mgos := utils.MgoSessionDupl()
 	defer mgos.Close()
-	mc := mgos.DB(utils.MongoPrefix+ tag)
+	mc := mgos.DB(utils.MongoPrefix + tag)
 	query := bson.M{}
 	if len(req.DataQuery) > 0 {
 		query = req.DataQuery

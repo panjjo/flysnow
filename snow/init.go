@@ -1,11 +1,12 @@
 package snow
 
 import (
+	"sync"
+
 	"github.com/panjf2000/ants"
 	"github.com/panjjo/flysnow/utils"
 	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
-	"sync"
 )
 
 var rotatePool *ants.Pool
@@ -21,7 +22,7 @@ func Init() {
 	// 10s调节一次归档work并发数
 	cron.AddFunc("@every 10s", ad)
 	// 每天检查一次需要归档的元数据
-	cron.AddFunc(utils.Config.AutoRotate, autoRotate)
+	cron.AddFunc(utils.Config.AutoRotate, AutoRotate)
 	// 每分钟检查一次归档work
 	cron.AddFunc("@every 1m", lsrRotate)
 	lsrRotate()
@@ -45,11 +46,11 @@ func ad() {
 			logrus.Warnf("rotate pool,cap > %d,cap:%d", utils.Config.MaxRotateNums, cap)
 		} else {
 			// 加10个
-			rotatePool.Tune(cap + 10)
+			rotatePool.Tune(uint(cap + 10))
 		}
 	}
 	if free > 20 {
 		// 空闲大于20 减10个
-		rotatePool.Tune(cap - 10)
+		rotatePool.Tune(uint(cap + 10))
 	}
 }

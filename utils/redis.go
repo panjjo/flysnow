@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -13,8 +14,10 @@ const (
 
 // redis key前缀
 var RDSPrefix string
+
 // 等待归档key集合
 var RotateSetsKey string = "ROTATEKEYS"
+
 // 等待归档单条源数据key前缀
 var SRotateKeyPre string = "rotate_"
 var DefaultRDSConfig *RDSConfig = &RDSConfig{
@@ -117,5 +120,4 @@ func RdsBatchCommands(commands []*RdsSendStruct) {
 			conn.Sends(c.Cmd, c.V...)
 		}
 	}
-
 }
