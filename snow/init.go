@@ -51,6 +51,6 @@ func ad() {
 	}
 	if free > 20 {
 		// 空闲大于20 减10个
-		rotatePool.Tune(uint(cap + 10))
+		rotatePool.Tune(uint(cap - 10))
 	}
 }
